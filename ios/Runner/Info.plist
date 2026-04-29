@@ -49,6 +49,17 @@
 	</dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Catchline records audio clips for your notes.</string>
+	<key>GIDClientID</key>
+	<string>332621785030-s0lsa46na2vhe9st88b05nkmmnjm6eo2.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.332621785030-s0lsa46na2vhe9st88b05nkmmnjm6eo2</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

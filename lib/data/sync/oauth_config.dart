@@ -11,24 +11,25 @@
 /// - **Android**: an "Android" OAuth client. Package name
 ///   `com.gnarhard.catchline` plus debug + release SHA-1 fingerprints. The
 ///   client ID is **not** referenced from code on Android — Google Play
-///   Services discovers it via the package + signature, so leave the constant
-///   below empty for Android.
+///   Services discovers it via the package + signature.
 /// - **Web**: a "Web application" OAuth client. Authorized JavaScript
 ///   origins must include `http://localhost:5000` (dev) and the eventual
 ///   production origin.
 ///
-/// Until these are filled in, [requireConfigured] throws with a clear error
-/// so a sync attempt fails loudly instead of silently producing 401s.
+/// Client IDs are public identifiers and safe to commit. Client *secrets*
+/// (only used by the Desktop OAuth flow, which Catchline does not use)
+/// must never be committed.
 class OAuthConfig {
   const OAuthConfig._();
 
-  // TODO(catchline): replace with the iOS/macOS OAuth client ID from Google
-  // Cloud Console (looks like `<numeric>-<hash>.apps.googleusercontent.com`).
-  static const String iosClientId = '';
+  /// iOS / macOS OAuth client ID. Bundle: `com.gnarhard.catchline`.
+  static const String iosClientId =
+      '332621785030-s0lsa46na2vhe9st88b05nkmmnjm6eo2.apps.googleusercontent.com';
 
-  // TODO(catchline): replace with the Web OAuth client ID. Required for the
-  // browser; ignored on native.
-  static const String webClientId = '';
+  /// Web OAuth client ID. Used in the browser and in `web/index.html`'s
+  /// `google-signin-client_id` meta tag.
+  static const String webClientId =
+      '332621785030-ts1k5v02kt84fts9jjc7akdk854m0dmc.apps.googleusercontent.com';
 
   /// Drive's "appdata" scope: a hidden, app-specific folder no other app or
   /// the Drive UI can see (visible only via the user's Drive "Manage apps").
