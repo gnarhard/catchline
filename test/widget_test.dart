@@ -1,30 +1,45 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:catchline/app.dart';
+import 'package:catchline/data/boxes.dart';
+import 'package:catchline/data/models/item.dart';
+import 'package:catchline/hive_registrar.g.dart';
+import 'package:catchline/state/providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:catchline/main.dart';
+import 'package:hive_ce/hive.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  late Directory tempDir;
+  late Boxes boxes;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp('catchline_test_');
+    Hive.init(tempDir.path);
+    Hive.registerAdapters();
+    final items = await Hive.openBox<Item>(kItemsBoxName);
+    boxes = Boxes(items: items);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  tearDown(() async {
+    await Hive.close();
+    await tempDir.delete(recursive: true);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('home shell renders all four navigation destinations', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [boxesProvider.overrideWithValue(boxes)],
+        child: const CatchlineApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Journal'), findsAtLeastNWidgets(1));
+    expect(find.text('Poems'), findsAtLeastNWidgets(1));
+    expect(find.text('Lyrics'), findsAtLeastNWidgets(1));
+    expect(find.text('Phrases'), findsAtLeastNWidgets(1));
   });
 }

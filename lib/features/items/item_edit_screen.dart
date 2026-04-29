@@ -1,0 +1,299 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/models/audio_clip_meta.dart';
+import '../../data/models/item.dart';
+import '../../data/models/item_kind.dart';
+import '../../state/providers.dart';
+import 'widgets/audio_clip_tile.dart';
+import 'widgets/audio_recorder.dart';
+
+class ItemEditScreen extends ConsumerStatefulWidget {
+  const ItemEditScreen({super.key, required this.itemId, required this.kind});
+
+  final String itemId;
+  final ItemKind kind;
+
+  @override
+  ConsumerState<ItemEditScreen> createState() => _ItemEditScreenState();
+}
+
+class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
+  late final TextEditingController _title;
+  late final TextEditingController _body;
+  late List<AudioClipMeta> _clips;
+  late String _initialTitle;
+  late String _initialBody;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _title = TextEditingController();
+    _body = TextEditingController();
+    _clips = [];
+  }
+
+  void _initFrom(Item item) {
+    _title.text = item.title;
+    _body.text = item.textBody;
+    _clips = List<AudioClipMeta>.from(item.audioClips);
+    _initialTitle = item.title;
+    _initialBody = item.textBody;
+    _initialized = true;
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _body.dispose();
+    super.dispose();
+  }
+
+  bool get _isDirty =>
+      _title.text != _initialTitle || _body.text != _initialBody;
+
+  Item? _readItem() => ref.read(itemsRepoProvider).get(widget.itemId);
+
+  Future<void> _persistClipsChange() async {
+    final item = _readItem();
+    if (item == null) return;
+    item.title = _title.text;
+    item.textBody = _body.text;
+    item.audioClips = List<AudioClipMeta>.from(_clips);
+    item.updatedAtMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await ref.read(itemsRepoProvider).put(item);
+    _initialTitle = _title.text;
+    _initialBody = _body.text;
+  }
+
+  Future<void> _saveAndPop() async {
+    final item = _readItem();
+    if (item == null) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    final newTitle = _title.text;
+    final newBody = _body.text;
+    final hasMeaningfulContent = newTitle.trim().isNotEmpty ||
+        newBody.trim().isNotEmpty ||
+        _clips.isNotEmpty;
+
+    if (!hasMeaningfulContent) {
+      // Brand-new empty item — drop it instead of leaving an "Untitled" stub.
+      await ref.read(itemsRepoProvider).delete(item.id);
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    item.title = newTitle;
+    item.textBody = newBody;
+    item.audioClips = List<AudioClipMeta>.from(_clips);
+    item.updatedAtMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await ref.read(itemsRepoProvider).put(item);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<bool> _confirmDiscard() async {
+    if (!_isDirty) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text(
+          'You have unsaved changes to the title or body. Discard them?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep editing'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<bool> _confirmDeleteItem() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this entry?'),
+        content: Text(
+          'This permanently removes the ${widget.kind.singular} and all its audio clips.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<bool> _confirmDeleteClip(int index) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete clip ${index + 1}?'),
+        content: const Text('This permanently removes the audio recording.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _deleteItem() async {
+    final ok = await _confirmDeleteItem();
+    if (!ok) return;
+    final audioRepo = ref.read(audioRepoProvider);
+    for (final clip in _clips) {
+      await audioRepo.delete(clip);
+    }
+    await ref.read(itemsRepoProvider).delete(widget.itemId);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteClip(int index) async {
+    final ok = await _confirmDeleteClip(index);
+    if (!ok) return;
+    final clip = _clips[index];
+    await ref.read(audioRepoProvider).delete(clip);
+    setState(() => _clips.removeAt(index));
+    await _persistClipsChange();
+  }
+
+  Future<void> _onClipRecorded(AudioClipMeta meta) async {
+    setState(() => _clips.add(meta));
+    await _persistClipsChange();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = _readItem();
+    if (item == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.kind.label)),
+        body: const Center(child: Text('Item not found.')),
+      );
+    }
+
+    if (!_initialized) {
+      _initFrom(item);
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final ok = await _confirmDiscard();
+        if (!ok) return;
+        await _saveAndPop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.kind.singular[0].toUpperCase() +
+              widget.kind.singular.substring(1)),
+          actions: [
+            IconButton(
+              tooltip: 'Delete',
+              onPressed: _deleteItem,
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  TextField(
+                    controller: _title,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _body,
+                    decoration: const InputDecoration(
+                      labelText: 'Body',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    minLines: 6,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Audio clips',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  AudioRecorderButton(onClipRecorded: _onClipRecorded),
+                  const SizedBox(height: 12),
+                  if (_clips.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No clips yet. Tap Record to capture audio.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    )
+                  else
+                    for (var i = 0; i < _clips.length; i++)
+                      AudioClipTile(
+                        key: ValueKey(_clips[i].id),
+                        clip: _clips[i],
+                        index: i,
+                        onDelete: () => _deleteClip(i),
+                      ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _saveAndPop,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Save'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
