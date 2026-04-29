@@ -1,11 +1,11 @@
 {
-    "name": "catchline",
-    "short_name": "catchline",
+    "name": "Catchline",
+    "short_name": "Catchline",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FBF6F6",
+    "theme_color": "#8B1E2C",
+    "description": "Capture journals, poems, lyrics, and phrases — with audio.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
