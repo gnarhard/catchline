@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'package:hive_ce/hive.dart';
 
 import 'audio_repository_io.dart'
-    if (dart.library.js_interop) 'audio_repository_web.dart' as platform;
+    if (dart.library.js_interop) 'audio_repository_web.dart'
+    as platform;
 import 'models/audio_clip_meta.dart';
 
 /// Persists audio clip bytes/files and resolves playable URIs.

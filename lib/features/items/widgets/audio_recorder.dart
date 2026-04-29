@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
@@ -178,20 +179,36 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton>
     return Row(
       children: [
         FilledButton.tonalIcon(
-          onPressed: isFinalizing
-              ? null
-              : (isRecording ? _stop : _start),
-          icon: Icon(isRecording ? Icons.stop : Icons.mic),
+          onPressed: isFinalizing ? null : (isRecording ? _stop : _start),
+          icon: Icon(
+            isRecording ? LucideIcons.square : LucideIcons.mic,
+            size: 16,
+          ),
           label: Text(isRecording ? 'Stop' : 'Record'),
         ),
         const SizedBox(width: 12),
         if (isRecording)
-          Text(
-            _formatElapsed(_elapsed),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.error,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.error,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _formatElapsed(_elapsed),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
           )
         else if (isFinalizing)
           Text('Saving…', style: theme.textTheme.bodyMedium),

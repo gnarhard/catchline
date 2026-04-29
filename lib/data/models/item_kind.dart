@@ -14,16 +14,16 @@ enum ItemKind {
   phrase;
 
   String get label => switch (this) {
-        ItemKind.journal => 'Journal',
-        ItemKind.poem => 'Poems',
-        ItemKind.lyric => 'Lyrics',
-        ItemKind.phrase => 'Phrases',
-      };
+    ItemKind.journal => 'Journal',
+    ItemKind.poem => 'Poems',
+    ItemKind.lyric => 'Lyrics',
+    ItemKind.phrase => 'Phrases',
+  };
 
   String get singular => switch (this) {
-        ItemKind.journal => 'journal entry',
-        ItemKind.poem => 'poem',
-        ItemKind.lyric => 'lyric',
-        ItemKind.phrase => 'phrase',
-      };
+    ItemKind.journal => 'journal entry',
+    ItemKind.poem => 'poem',
+    ItemKind.lyric => 'lyric',
+    ItemKind.phrase => 'phrase',
+  };
 }

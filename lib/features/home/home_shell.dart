@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/models/item_kind.dart';
+import '../../widgets/wave_background.dart';
 import '../items/item_list_screen.dart';
 
 class HomeShell extends StatefulWidget {
@@ -17,41 +19,38 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(
-          index: _index,
-          children: [
-            for (final kind in _kinds) ItemListScreen(kind: kind),
+    return WaveBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          bottom: false,
+          child: IndexedStack(
+            index: _index,
+            children: [for (final kind in _kinds) ItemListScreen(kind: kind)],
+          ),
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(LucideIcons.notebookPen),
+              label: 'Journal',
+            ),
+            NavigationDestination(
+              icon: Icon(LucideIcons.feather),
+              label: 'Poems',
+            ),
+            NavigationDestination(
+              icon: Icon(LucideIcons.music),
+              label: 'Lyrics',
+            ),
+            NavigationDestination(
+              icon: Icon(LucideIcons.quote),
+              label: 'Phrases',
+            ),
           ],
         ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: 'Journal',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_stories_outlined),
-            selectedIcon: Icon(Icons.auto_stories),
-            label: 'Poems',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.music_note_outlined),
-            selectedIcon: Icon(Icons.music_note),
-            label: 'Lyrics',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.format_quote_outlined),
-            selectedIcon: Icon(Icons.format_quote),
-            label: 'Phrases',
-          ),
-        ],
       ),
     );
   }

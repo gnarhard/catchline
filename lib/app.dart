@@ -12,7 +12,8 @@ class CatchlineApp extends StatelessWidget {
       title: 'Catchline',
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.dark,
+      debugShowCheckedModeBanner: false,
       home: const HomeShell(),
     );
   }

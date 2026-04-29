@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
@@ -20,6 +21,7 @@ class ItemListScreen extends ConsumerWidget {
     final items = ref.watch(itemsByKindProvider(kind));
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: Text(kind.label)),
       body: Center(
         child: ConstrainedBox(
@@ -29,7 +31,8 @@ class ItemListScreen extends ConsumerWidget {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: items.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, indent: 16, endIndent: 16),
                   itemBuilder: (context, i) {
                     final item = items[i];
                     return ItemTile(
@@ -41,8 +44,9 @@ class ItemListScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_${kind.name}',
         onPressed: () => _create(context, ref),
-        icon: const Icon(Icons.add),
+        icon: const Icon(LucideIcons.plus, size: 18),
         label: const Text('New'),
       ),
     );
@@ -76,4 +80,3 @@ class ItemListScreen extends ConsumerWidget {
     );
   }
 }
-

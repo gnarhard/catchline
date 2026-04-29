@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../data/models/item_kind.dart';
 
@@ -17,8 +18,8 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(_iconFor(kind), size: 56, color: color),
-          const SizedBox(height: 16),
+          Icon(_iconFor(kind), size: 48, color: color.withAlpha(180)),
+          const SizedBox(height: 20),
           Text(
             _titleFor(kind),
             style: theme.textTheme.titleLarge,
@@ -36,25 +37,25 @@ class EmptyState extends StatelessWidget {
   }
 
   IconData _iconFor(ItemKind kind) => switch (kind) {
-        ItemKind.journal => Icons.menu_book_outlined,
-        ItemKind.poem => Icons.auto_stories_outlined,
-        ItemKind.lyric => Icons.music_note_outlined,
-        ItemKind.phrase => Icons.format_quote_outlined,
-      };
+    ItemKind.journal => LucideIcons.notebookPen,
+    ItemKind.poem => LucideIcons.feather,
+    ItemKind.lyric => LucideIcons.music,
+    ItemKind.phrase => LucideIcons.quote,
+  };
 
   String _titleFor(ItemKind kind) => switch (kind) {
-        ItemKind.journal => 'No journal entries yet',
-        ItemKind.poem => 'No poems yet',
-        ItemKind.lyric => 'No lyrics yet',
-        ItemKind.phrase => 'No phrases yet',
-      };
+    ItemKind.journal => 'No journal entries yet',
+    ItemKind.poem => 'No poems yet',
+    ItemKind.lyric => 'No lyrics yet',
+    ItemKind.phrase => 'No phrases yet',
+  };
 
   String _bodyFor(ItemKind kind) => switch (kind) {
-        ItemKind.journal =>
-          'Tap New to write your first entry or record a voice note.',
-        ItemKind.poem =>
-          'Tap New to capture a poem — words on the page or read aloud.',
-        ItemKind.lyric => 'Tap New to save a lyric you want to remember.',
-        ItemKind.phrase => 'Tap New to save a phrase you find catchy.',
-      };
+    ItemKind.journal =>
+      'Tap New to write your first entry or record a voice note.',
+    ItemKind.poem =>
+      'Tap New to capture a poem — words on the page or read aloud.',
+    ItemKind.lyric => 'Tap New to save a lyric you want to remember.',
+    ItemKind.phrase => 'Tap New to save a phrase you find catchy.',
+  };
 }

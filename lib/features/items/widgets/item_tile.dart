@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../data/models/item.dart';
 import '../../../util/text_preview.dart';
@@ -19,32 +20,30 @@ class ItemTile extends StatelessWidget {
 
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       title: Text(
         hasTitle ? item.title : 'Untitled',
         style: theme.textTheme.titleMedium?.copyWith(
           fontStyle: hasTitle ? FontStyle.normal : FontStyle.italic,
-          color: hasTitle
-              ? null
-              : theme.colorScheme.onSurfaceVariant,
+          color: hasTitle ? null : theme.colorScheme.onSurfaceVariant,
         ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          hasBody ? preview : 'No text',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-      trailing: hasClips
-          ? _ClipBadge(count: item.audioClips.length)
+      subtitle: hasBody
+          ? Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                preview,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            )
           : null,
+      trailing: hasClips ? _ClipBadge(count: item.audioClips.length) : null,
     );
   }
 }
@@ -57,24 +56,21 @@ class _ClipBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
+        color: theme.colorScheme.primary.withAlpha(40),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.mic,
-            size: 14,
-            color: theme.colorScheme.onSecondaryContainer,
-          ),
+          Icon(LucideIcons.mic, size: 12, color: theme.colorScheme.primary),
           const SizedBox(width: 4),
           Text(
             '$count',
             style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSecondaryContainer,
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../data/models/audio_clip_meta.dart';
 import '../../../state/providers.dart';
@@ -74,24 +75,61 @@ class _AudioClipTileState extends ConsumerState<AudioClipTile> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final duration = Duration(milliseconds: widget.clip.durationMs);
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        leading: IconButton.filledTonal(
-          onPressed: _toggle,
-          icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-        ),
-        title: Text('Clip ${widget.index + 1}'),
-        subtitle: Text(
-          _formatDuration(duration),
-          style: theme.textTheme.bodySmall,
-        ),
-        trailing: IconButton(
-          onPressed: widget.onDelete,
-          icon: const Icon(Icons.delete_outline),
-          tooltip: 'Delete clip',
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Material(
+              color: colorScheme.primary.withAlpha(40),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _toggle,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(
+                    _playing ? LucideIcons.pause : LucideIcons.play,
+                    size: 16,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Clip ${widget.index + 1}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatDuration(duration),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: widget.onDelete,
+              icon: const Icon(LucideIcons.trash2, size: 18),
+              tooltip: 'Delete clip',
+            ),
+          ],
         ),
       ),
     );
