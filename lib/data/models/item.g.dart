@@ -24,13 +24,14 @@ class ItemAdapter extends TypeAdapter<Item> {
       audioClips: (fields[4] as List).cast<AudioClipMeta>(),
       createdAtMs: (fields[5] as num).toInt(),
       updatedAtMs: (fields[6] as num).toInt(),
+      deletedAtMs: (fields[7] as num?)?.toInt(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(5)
       ..write(obj.createdAtMs)
       ..writeByte(6)
-      ..write(obj.updatedAtMs);
+      ..write(obj.updatedAtMs)
+      ..writeByte(7)
+      ..write(obj.deletedAtMs);
   }
 
   @override

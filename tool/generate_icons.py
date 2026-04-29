@@ -45,32 +45,62 @@ SRC_WHITE = np.array([254, 254, 245], dtype=np.float32)
 
 
 # ── recolor pass ──────────────────────────────────────────────────────────────
+def _fit_blend(rgb: np.ndarray, c0: np.ndarray, c1: np.ndarray):
+    """Best-fit α (clipped) and residual norm for the model rgb = (1-α)c0 + αc1."""
+    delta = c1 - c0
+    denom = float(np.dot(delta, delta))
+    alpha = np.sum((rgb - c0) * delta, axis=2, keepdims=True) / denom
+    alpha_clipped = np.clip(alpha, 0.0, 1.0)
+    pred = c0 + alpha_clipped * delta
+    residual = np.sqrt(np.sum((rgb - pred) ** 2, axis=2, keepdims=True))
+    return alpha_clipped, residual
+
+
 def recolor_to_maroon_transparent(src_path: Path) -> Image.Image:
-    """Replace navy → maroon, keep belly white, drop the blue background."""
+    """Strict two-color recolor.
+
+    For every source pixel pick the blend model (bg+navy, bg+white, navy+white)
+    with the smallest residual, then map that pixel to either pure maroon or
+    pure white. Alpha carries all anti-aliasing; the output never contains an
+    intermediate hue.
+    """
     src = np.array(Image.open(src_path).convert("RGBA")).astype(np.float32)
     rgb = src[..., :3]
 
-    # Coverage estimates: how much of each foreground color is in the pixel,
-    # treating the source as alpha-blended onto SRC_BG.
-    darker = np.clip((SRC_BG - rgb) / (SRC_BG - SRC_NAVY), 0, 1)
-    darker_alpha = np.max(darker, axis=2, keepdims=True)
-    lighter = np.clip((rgb - SRC_BG) / (SRC_WHITE - SRC_BG), 0, 1)
-    lighter_alpha = np.max(lighter, axis=2, keepdims=True)
-    alpha = np.maximum(darker_alpha, lighter_alpha)
+    # Three models — α encodes coverage of the second color in each pair.
+    a_bg_navy, res_bg_navy = _fit_blend(rgb, SRC_BG, SRC_NAVY)         # → MAROON @ α
+    a_bg_white, res_bg_white = _fit_blend(rgb, SRC_BG, SRC_WHITE)      # → WHITE @ α
+    a_navy_white, res_navy_white = _fit_blend(rgb, SRC_NAVY, SRC_WHITE)  # interior
+
+    residuals = np.concatenate([res_bg_navy, res_bg_white, res_navy_white], axis=2)
+    best = np.argmin(residuals, axis=2, keepdims=True)
+
+    # Alpha per model: 1.0 for the interior model, blend coverage otherwise.
+    ones = np.ones_like(a_bg_navy)
+    alpha = np.where(
+        best == 0, a_bg_navy,
+        np.where(best == 1, a_bg_white, ones),
+    )
+
+    # Class per model: model 0 → MAROON, model 1 → WHITE,
+    # model 2 → MAROON if α<0.5 (navy-dominant) else WHITE.
+    is_maroon = np.where(
+        best == 0, ones,
+        np.where(best == 1, np.zeros_like(a_bg_navy),
+                 (a_navy_white < 0.5).astype(np.float32)),
+    )
 
     # Floor suppresses the soft drop-shadow at the bottom of the source.
-    floor = 0.22
-    alpha = np.clip((alpha - floor) / (1.0 - floor), 0, 1)
+    floor = 0.18
+    alpha = np.clip((alpha - floor) / (1.0 - floor), 0.0, 1.0)
 
-    total = darker_alpha + lighter_alpha + 1e-6
-    t = lighter_alpha / total  # 0 = pure maroon, 1 = pure white belly
-    color = np.array(MAROON, dtype=np.float32) * (1 - t) + np.array(
-        [255, 255, 255], dtype=np.float32
-    ) * t
+    maroon_arr = np.array(MAROON, dtype=np.float32)
+    white_arr = np.array([255.0, 255.0, 255.0], dtype=np.float32)
+    color = is_maroon * maroon_arr + (1.0 - is_maroon) * white_arr
 
     out = np.concatenate([color, alpha * 255.0], axis=2)
     img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
-    return img.crop(img.getbbox())  # tight crop
+    return img.crop(img.getbbox())
 
 
 def fit_into_square(content: Image.Image, size: int, margin_ratio: float) -> Image.Image:

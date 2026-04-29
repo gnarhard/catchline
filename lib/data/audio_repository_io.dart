@@ -67,6 +67,26 @@ class _IoAudioRepository implements AudioRepository {
       await f.delete();
     }
   }
+
+  @override
+  Future<bool> hasBytes(AudioClipMeta meta) async {
+    final dir = await _ensureAudioDir();
+    return File(_pathFor(dir, meta.id, meta.fileExt)).exists();
+  }
+
+  @override
+  Future<Uint8List?> readBytes(AudioClipMeta meta) async {
+    final dir = await _ensureAudioDir();
+    final f = File(_pathFor(dir, meta.id, meta.fileExt));
+    if (!await f.exists()) return null;
+    return f.readAsBytes();
+  }
+
+  @override
+  Future<void> writeBytes(AudioClipMeta meta, Uint8List bytes) async {
+    final dir = await _ensureAudioDir();
+    await File(_pathFor(dir, meta.id, meta.fileExt)).writeAsBytes(bytes);
+  }
 }
 
 AudioRepository createAudioRepository({Box<Uint8List>? audioBytesBox}) =>

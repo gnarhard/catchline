@@ -28,6 +28,9 @@ class Item extends HiveObject {
   @HiveField(6)
   int updatedAtMs;
 
+  @HiveField(7)
+  int? deletedAtMs;
+
   Item({
     required this.id,
     required this.kind,
@@ -36,5 +39,6 @@ class Item extends HiveObject {
     required this.audioClips,
     required this.createdAtMs,
     required this.updatedAtMs,
+    this.deletedAtMs,
   });
 }

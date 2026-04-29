@@ -5,7 +5,7 @@ import '../hive_registrar.g.dart';
 import 'models/item.dart';
 
 class Boxes {
-  Boxes({required this.items, this.audioBytes});
+  Boxes({required this.items, required this.syncMeta, this.audioBytes});
 
   final Box<Item> items;
 
@@ -13,19 +13,26 @@ class Boxes {
   /// audio is written to files in the app documents directory instead, so this
   /// is null.
   final Box<Uint8List>? audioBytes;
+
+  /// Small key/value store for Drive sync state (manifest etag, last-synced
+  /// timestamps). Keys are scoped by Google account email so signing into a
+  /// different account does not leak state from another.
+  final Box<dynamic> syncMeta;
 }
 
 const String kItemsBoxName = 'items';
 const String kAudioBytesBoxName = 'audioBytes';
+const String kSyncMetaBoxName = 'sync_meta';
 
 Future<Boxes> openBoxes() async {
   await Hive.initFlutter();
   Hive.registerAdapters();
 
   final items = await Hive.openBox<Item>(kItemsBoxName);
+  final syncMeta = await Hive.openBox<dynamic>(kSyncMetaBoxName);
   final audioBytes = kIsWeb
       ? await Hive.openBox<Uint8List>(kAudioBytesBoxName)
       : null;
 
-  return Boxes(items: items, audioBytes: audioBytes);
+  return Boxes(items: items, syncMeta: syncMeta, audioBytes: audioBytes);
 }

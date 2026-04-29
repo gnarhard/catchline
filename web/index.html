@@ -32,6 +32,15 @@
 
   <title>Catchline</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Drive sync needs the Web OAuth client ID. Replace the empty `content`
+    below with the value from Google Cloud Console and ensure
+    `http://localhost:5000` (and the production origin) are listed as
+    Authorized JavaScript origins on that client. The same value must also
+    be stored in lib/data/sync/oauth_config.dart.
+  -->
+  <meta name="google-signin-client_id" content="">
 </head>
 <body>
   <!--

@@ -7,6 +7,7 @@ import '../../data/models/item_kind.dart';
 import '../../state/items_notifier.dart';
 import '../../state/providers.dart';
 import '../../util/id.dart';
+import '../settings/settings_screen.dart';
 import 'item_edit_screen.dart';
 import 'widgets/empty_state.dart';
 import 'widgets/item_tile.dart';
@@ -22,7 +23,18 @@ class ItemListScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: Text(kind.label)),
+      appBar: AppBar(
+        title: Text(kind.label),
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.settings),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),

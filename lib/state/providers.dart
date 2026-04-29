@@ -22,3 +22,7 @@ final audioRepoProvider = Provider<AudioRepository>((ref) {
   final boxes = ref.watch(boxesProvider);
   return createAudioRepository(audioBytesBox: boxes.audioBytes);
 });
+
+final syncMetaBoxProvider = Provider(
+  (ref) => ref.watch(boxesProvider).syncMeta,
+);

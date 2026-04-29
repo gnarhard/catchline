@@ -18,7 +18,8 @@ void main() {
     Hive.init(tempDir.path);
     Hive.registerAdapters();
     final items = await Hive.openBox<Item>(kItemsBoxName);
-    boxes = Boxes(items: items);
+    final syncMeta = await Hive.openBox<dynamic>(kSyncMetaBoxName);
+    boxes = Boxes(items: items, syncMeta: syncMeta);
   });
 
   tearDown(() async {
@@ -35,7 +36,11 @@ void main() {
         child: const CatchlineApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    // Pump a few frames manually — `pumpAndSettle` would hang because the
+    // wave background's `Ticker` schedules frames continuously.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
 
     expect(find.text('Journal'), findsAtLeastNWidgets(1));
     expect(find.text('Poems'), findsAtLeastNWidgets(1));

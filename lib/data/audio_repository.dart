@@ -38,6 +38,18 @@ abstract class AudioRepository {
   Future<String> playableUri(AudioClipMeta meta);
 
   Future<void> delete(AudioClipMeta meta);
+
+  /// Whether the audio bytes for [meta] are present on this device. Used by
+  /// the sync engine to decide whether to upload a clip and whether it needs
+  /// to download a missing remote clip before showing its parent item.
+  Future<bool> hasBytes(AudioClipMeta meta);
+
+  /// Reads the raw bytes for [meta]. Returns `null` if not present.
+  Future<Uint8List?> readBytes(AudioClipMeta meta);
+
+  /// Persists [bytes] for [meta]. Used by the sync engine when downloading a
+  /// clip from Drive that is referenced by a pulled item.
+  Future<void> writeBytes(AudioClipMeta meta, Uint8List bytes);
 }
 
 AudioRepository createAudioRepository({Box<Uint8List>? audioBytesBox}) =>

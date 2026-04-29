@@ -79,6 +79,24 @@ class _WebAudioRepository implements AudioRepository {
       web.URL.revokeObjectURL(cached);
     }
   }
+
+  @override
+  Future<bool> hasBytes(AudioClipMeta meta) async =>
+      _bytesBox.containsKey(meta.id);
+
+  @override
+  Future<Uint8List?> readBytes(AudioClipMeta meta) async =>
+      _bytesBox.get(meta.id);
+
+  @override
+  Future<void> writeBytes(AudioClipMeta meta, Uint8List bytes) async {
+    await _bytesBox.put(meta.id, bytes);
+    // Drop any stale blob URL so the next playableUri rematerializes.
+    final cached = _blobUrlCache.remove(meta.id);
+    if (cached != null) {
+      web.URL.revokeObjectURL(cached);
+    }
+  }
 }
 
 AudioRepository createAudioRepository({Box<Uint8List>? audioBytesBox}) {
