@@ -52,8 +52,11 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     super.dispose();
   }
 
+  bool get _hasTitle => widget.kind != ItemKind.phrase;
+
   bool get _isDirty =>
-      _title.text != _initialTitle || _body.text != _initialBody;
+      (_hasTitle && _title.text != _initialTitle) ||
+      _body.text != _initialBody;
 
   Item? _readItem() => ref.read(itemsRepoProvider).get(widget.itemId);
 
@@ -75,7 +78,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
       if (mounted) Navigator.of(context).pop();
       return;
     }
-    final newTitle = _title.text;
+    final newTitle = _hasTitle ? _title.text : '';
     final newBody = _body.text;
     final hasMeaningfulContent =
         newTitle.trim().isNotEmpty ||
@@ -103,8 +106,10 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Discard changes?'),
-        content: const Text(
-          'You have unsaved changes to the title or body. Discard them?',
+        content: Text(
+          _hasTitle
+              ? 'You have unsaved changes to the title or body. Discard them?'
+              : 'You have unsaved changes. Discard them?',
         ),
         actions: [
           TextButton(
@@ -249,27 +254,29 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                     vertical: 12,
                   ),
                   children: [
-                    TextField(
-                      controller: _title,
-                      decoration: const InputDecoration(
-                        hintText: 'Title',
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    if (_hasTitle) ...[
+                      TextField(
+                        controller: _title,
+                        decoration: const InputDecoration(
+                          hintText: 'Title',
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                        textInputAction: TextInputAction.next,
+                        onChanged: (_) => setState(() {}),
                       ),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
+                      Container(
+                        height: 1,
+                        color: colorScheme.outlineVariant.withAlpha(140),
                       ),
-                      textInputAction: TextInputAction.next,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    Container(
-                      height: 1,
-                      color: colorScheme.outlineVariant.withAlpha(140),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                    ],
                     TextField(
                       controller: _body,
                       decoration: const InputDecoration(
