@@ -25,16 +25,23 @@ class AudioClipTile extends ConsumerStatefulWidget {
 }
 
 class _AudioClipTileState extends ConsumerState<AudioClipTile> {
-  late final AudioPlayer _player;
+  AudioPlayer? _player;
   StreamSubscription<PlayerState>? _stateSub;
-  bool _loaded = false;
   bool _playing = false;
+  bool _preparing = false;
 
   @override
-  void initState() {
-    super.initState();
-    _player = AudioPlayer();
-    _stateSub = _player.playerStateStream.listen((state) {
+  void dispose() {
+    _stateSub?.cancel();
+    _player?.dispose();
+    super.dispose();
+  }
+
+  Future<AudioPlayer> _ensurePlayer() async {
+    final existing = _player;
+    if (existing != null) return existing;
+    final player = AudioPlayer();
+    _stateSub = player.playerStateStream.listen((state) {
       if (!mounted) return;
       final isPlaying =
           state.playing && state.processingState != ProcessingState.completed;
@@ -42,34 +49,36 @@ class _AudioClipTileState extends ConsumerState<AudioClipTile> {
         setState(() => _playing = isPlaying);
       }
       if (state.processingState == ProcessingState.completed) {
-        _player.seek(Duration.zero);
-        _player.pause();
+        player.seek(Duration.zero);
+        player.pause();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _stateSub?.cancel();
-    _player.dispose();
-    super.dispose();
-  }
-
-  Future<void> _ensureLoaded() async {
-    if (_loaded) return;
     final repo = ref.read(audioRepoProvider);
     final uri = await repo.playableUri(widget.clip);
-    await _player.setUrl(uri);
-    _loaded = true;
+    await player.setUrl(uri);
+    _player = player;
+    return player;
   }
 
   Future<void> _toggle() async {
-    if (_playing) {
-      await _player.pause();
+    final existing = _player;
+    if (existing != null) {
+      if (_playing) {
+        await existing.pause();
+      } else {
+        await existing.play();
+      }
       return;
     }
-    await _ensureLoaded();
-    await _player.play();
+    if (_preparing) return;
+    setState(() => _preparing = true);
+    try {
+      final player = await _ensurePlayer();
+      if (!mounted) return;
+      await player.play();
+    } finally {
+      if (mounted) setState(() => _preparing = false);
+    }
   }
 
   @override
@@ -89,15 +98,23 @@ class _AudioClipTileState extends ConsumerState<AudioClipTile> {
               shape: const CircleBorder(),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: _toggle,
+                onTap: _preparing ? null : _toggle,
                 child: SizedBox(
                   width: 40,
                   height: 40,
-                  child: Icon(
-                    _playing ? LucideIcons.pause : LucideIcons.play,
-                    size: 16,
-                    color: colorScheme.primary,
-                  ),
+                  child: _preparing
+                      ? Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.primary,
+                          ),
+                        )
+                      : Icon(
+                          _playing ? LucideIcons.pause : LucideIcons.play,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
                 ),
               ),
             ),

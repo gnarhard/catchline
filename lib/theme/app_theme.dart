@@ -80,6 +80,16 @@ ThemeData _buildTheme(Brightness brightness) {
   return base.copyWith(
     textTheme: textTheme,
     primaryTextTheme: textTheme,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: <TargetPlatform, PageTransitionsBuilder>{
+        TargetPlatform.android: _NoTransitionsBuilder(),
+        TargetPlatform.iOS: _NoTransitionsBuilder(),
+        TargetPlatform.macOS: _NoTransitionsBuilder(),
+        TargetPlatform.windows: _NoTransitionsBuilder(),
+        TargetPlatform.linux: _NoTransitionsBuilder(),
+        TargetPlatform.fuchsia: _NoTransitionsBuilder(),
+      },
+    ),
     dividerColor: dividerColor,
     dividerTheme: DividerThemeData(color: dividerColor, space: 1, thickness: 1),
     appBarTheme: AppBarTheme(
@@ -213,4 +223,17 @@ ThemeData _buildTheme(Brightness brightness) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
+}
+
+class _NoTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => child;
 }

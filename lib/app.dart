@@ -8,6 +8,7 @@ import 'features/home/home_shell.dart';
 import 'state/providers.dart';
 import 'state/sync_providers.dart';
 import 'theme/app_theme.dart';
+import 'widgets/wave_background.dart';
 
 class CatchlineApp extends ConsumerStatefulWidget {
   const CatchlineApp({super.key});
@@ -85,6 +86,8 @@ class _CatchlineAppState extends ConsumerState<CatchlineApp> {
       darkTheme: buildDarkTheme(),
       themeMode: ThemeMode.dark,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) =>
+          WaveBackground(child: child ?? const SizedBox.shrink()),
       home: const HomeShell(),
     );
   }

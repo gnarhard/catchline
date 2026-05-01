@@ -6,7 +6,6 @@ import '../../data/models/audio_clip_meta.dart';
 import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
 import '../../state/providers.dart';
-import '../../widgets/wave_background.dart';
 import 'widgets/audio_clip_tile.dart';
 import 'widgets/audio_recorder.dart';
 
@@ -55,8 +54,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   bool get _hasTitle => widget.kind != ItemKind.phrase;
 
   bool get _isDirty =>
-      (_hasTitle && _title.text != _initialTitle) ||
-      _body.text != _initialBody;
+      (_hasTitle && _title.text != _initialTitle) || _body.text != _initialBody;
 
   Item? _readItem() => ref.read(itemsRepoProvider).get(widget.itemId);
 
@@ -205,12 +203,10 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   Widget build(BuildContext context) {
     final item = _readItem();
     if (item == null) {
-      return WaveBackground(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(title: Text(widget.kind.label)),
-          body: const Center(child: Text('Item not found.')),
-        ),
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: Text(widget.kind.label)),
+        body: const Center(child: Text('Item not found.')),
       );
     }
 
@@ -223,122 +219,120 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     final singular = widget.kind.singular;
     final titleLabel = singular[0].toUpperCase() + singular.substring(1);
 
-    return WaveBackground(
-      child: PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, _) async {
-          if (didPop) return;
-          final ok = await _confirmDiscard();
-          if (!ok) return;
-          await _saveAndPop();
-        },
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            title: Text(titleLabel),
-            actions: [
-              IconButton(
-                tooltip: 'Delete',
-                onPressed: _deleteItem,
-                icon: const Icon(LucideIcons.trash2, size: 20),
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  children: [
-                    if (_hasTitle) ...[
-                      TextField(
-                        controller: _title,
-                        decoration: const InputDecoration(
-                          hintText: 'Title',
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
-                        ),
-                        textInputAction: TextInputAction.next,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      Container(
-                        height: 1,
-                        color: colorScheme.outlineVariant.withAlpha(140),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final ok = await _confirmDiscard();
+        if (!ok) return;
+        await _saveAndPop();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(titleLabel),
+          actions: [
+            IconButton(
+              tooltip: 'Delete',
+              onPressed: _deleteItem,
+              icon: const Icon(LucideIcons.trash2, size: 20),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                children: [
+                  if (_hasTitle) ...[
                     TextField(
-                      controller: _body,
+                      controller: _title,
                       decoration: const InputDecoration(
-                        hintText: 'Write something…',
+                        hintText: 'Title',
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
-                      style: theme.textTheme.bodyLarge?.copyWith(
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,
-                        height: 1.6,
                       ),
-                      minLines: 6,
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.next,
                       onChanged: (_) => setState(() {}),
                     ),
-                    const SizedBox(height: 8),
                     Container(
                       height: 1,
                       color: colorScheme.outlineVariant.withAlpha(140),
                     ),
-                    const SizedBox(height: 28),
-                    Text(
-                      'Audio',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    AudioRecorderButton(onClipRecorded: _onClipRecorded),
-                    const SizedBox(height: 12),
-                    if (_clips.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'No clips yet. Tap Record to capture audio.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      )
-                    else
-                      for (var i = 0; i < _clips.length; i++)
-                        AudioClipTile(
-                          key: ValueKey(_clips[i].id),
-                          clip: _clips[i],
-                          index: i,
-                          onDelete: () => _deleteClip(i),
-                        ),
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      onPressed: _saveAndPop,
-                      icon: const Icon(LucideIcons.check, size: 18),
-                      label: const Text('Save'),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                   ],
-                ),
+                  TextField(
+                    controller: _body,
+                    decoration: const InputDecoration(
+                      hintText: 'Write something…',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurface,
+                      height: 1.6,
+                    ),
+                    minLines: 6,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withAlpha(140),
+                  ),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Audio',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  AudioRecorderButton(onClipRecorded: _onClipRecorded),
+                  const SizedBox(height: 12),
+                  if (_clips.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No clips yet. Tap Record to capture audio.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  else
+                    for (var i = 0; i < _clips.length; i++)
+                      AudioClipTile(
+                        key: ValueKey(_clips[i].id),
+                        clip: _clips[i],
+                        index: i,
+                        onDelete: () => _deleteClip(i),
+                      ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _saveAndPop,
+                    icon: const Icon(LucideIcons.check, size: 18),
+                    label: const Text('Save'),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
           ),
