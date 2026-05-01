@@ -295,6 +295,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                     minLines: 6,
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 8),
