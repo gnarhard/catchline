@@ -98,6 +98,37 @@ void main() {
       expect(decisions.single.newEntry.deletedAtMs, 100);
     });
 
+    test('both sides tombstoned at the same timestamp -> noop', () {
+      final decisions = planMerge(
+        remoteEntries: {'a': _entry(updatedAtMs: 50, deletedAtMs: 50)},
+        localItems: {'a': _item(updatedAtMs: 50, deletedAtMs: 50)},
+      );
+      expect(decisions.single.action, MergeAction.noop);
+    });
+
+    test('local tombstone newer than remote -> push', () {
+      final decisions = planMerge(
+        remoteEntries: {'a': _entry(updatedAtMs: 50)},
+        localItems: {'a': _item(updatedAtMs: 100, deletedAtMs: 100)},
+      );
+      expect(decisions.single.action, MergeAction.push);
+      expect(decisions.single.newEntry.deletedAtMs, 100);
+    });
+
+    test('remote-only id that is already a tombstone -> pull', () {
+      final decisions = planMerge(
+        remoteEntries: {'a': _entry(updatedAtMs: 100, deletedAtMs: 100)},
+        localItems: const {},
+      );
+      expect(decisions.single.action, MergeAction.pull);
+      expect(decisions.single.newEntry.deletedAtMs, 100);
+    });
+
+    test('empty inputs produce no decisions', () {
+      expect(planMerge(remoteEntries: const {}, localItems: const {}),
+          isEmpty);
+    });
+
     test('mixed batch: pull, push, noop', () {
       final decisions = planMerge(
         remoteEntries: {

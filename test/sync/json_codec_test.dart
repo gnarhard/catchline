@@ -1,3 +1,4 @@
+import 'package:catchline/data/models/ai_favorite.dart';
 import 'package:catchline/data/models/audio_clip_meta.dart';
 import 'package:catchline/data/models/item.dart';
 import 'package:catchline/data/models/item_kind.dart';
@@ -112,6 +113,94 @@ void main() {
         );
         expect(itemFromJson(itemToJson(item)).kind, kind);
       }
+    });
+  });
+
+  group('AiFavorite JSON', () {
+    test('round-trips style/text/createdAtMs', () {
+      final fav = AiFavorite(
+        style: 'Hozier',
+        text: 'in green hush',
+        createdAtMs: 1234567890,
+      );
+      final restored = aiFavoriteFromJson(aiFavoriteToJson(fav));
+      expect(restored.style, 'Hozier');
+      expect(restored.text, 'in green hush');
+      expect(restored.createdAtMs, 1234567890);
+    });
+  });
+
+  group('Item JSON with AI fields', () {
+    test('round-trips aiSynopsis and aiRephrasings', () {
+      final item = Item(
+        id: 'i1',
+        kind: ItemKind.journal,
+        title: 't',
+        textBody: 'b',
+        audioClips: const [],
+        createdAtMs: 1,
+        updatedAtMs: 1,
+        aiSynopsis: 'A reflective entry.',
+        aiRephrasings: const {'Hozier': 'a green hush', 'Plato': 'the form'},
+      );
+      final restored = itemFromJson(itemToJson(item));
+      expect(restored.aiSynopsis, 'A reflective entry.');
+      expect(restored.aiRephrasings, {'Hozier': 'a green hush', 'Plato': 'the form'});
+    });
+
+    test('round-trips aiFavorites', () {
+      final item = Item(
+        id: 'i1',
+        kind: ItemKind.phrase,
+        title: 't',
+        textBody: 'b',
+        audioClips: const [],
+        createdAtMs: 1,
+        updatedAtMs: 1,
+        aiFavorites: [
+          AiFavorite(style: 'Hozier', text: 'green hush', createdAtMs: 10),
+          AiFavorite(style: 'Plato', text: 'the form', createdAtMs: 20),
+        ],
+      );
+      final restored = itemFromJson(itemToJson(item));
+      expect(restored.aiFavorites, isNotNull);
+      expect(restored.aiFavorites!.length, 2);
+      expect(restored.aiFavorites!.first.style, 'Hozier');
+      expect(restored.aiFavorites!.last.text, 'the form');
+    });
+
+    test('omits aiSynopsis/aiRephrasings/aiFavorites from JSON when null/empty',
+        () {
+      final item = Item(
+        id: 'i1',
+        kind: ItemKind.poem,
+        title: 't',
+        textBody: 'b',
+        audioClips: const [],
+        createdAtMs: 1,
+        updatedAtMs: 1,
+        aiFavorites: const [],
+      );
+      final json = itemToJson(item);
+      expect(json.containsKey('aiSynopsis'), isFalse);
+      expect(json.containsKey('aiRephrasings'), isFalse);
+      expect(json.containsKey('aiFavorites'), isFalse);
+    });
+
+    test('decodes JSON missing optional fields without error', () {
+      final item = itemFromJson({
+        'id': 'i1',
+        'kind': 'lyric',
+        'title': '',
+        'textBody': '',
+        'createdAtMs': 1,
+        'updatedAtMs': 1,
+      });
+      expect(item.audioClips, isEmpty);
+      expect(item.deletedAtMs, isNull);
+      expect(item.aiSynopsis, isNull);
+      expect(item.aiRephrasings, isNull);
+      expect(item.aiFavorites, isNull);
     });
   });
 
