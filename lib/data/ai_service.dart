@@ -1,0 +1,172 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+class AiException implements Exception {
+  AiException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+class AiService {
+  AiService({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+
+  static const _endpoint = 'https://api.anthropic.com/v1/messages';
+  static const _anthropicVersion = '2023-06-01';
+  static const _model = 'claude-sonnet-4-6';
+
+  Future<String> generateJournalSynopsis({
+    required String apiKey,
+    required String entryBody,
+  }) async {
+    if (entryBody.trim().isEmpty) {
+      throw AiException('Write something in the entry first.');
+    }
+    final body = jsonEncode({
+      'model': _model,
+      'max_tokens': 400,
+      'system':
+          'You write tight, candid synopses of personal journal entries. '
+          'Capture the core feeling, key events, and any decisions or shifts '
+          'in mood. Two to four sentences. Use the writer\'s own voice — first '
+          'person — and avoid hedging or therapy-speak. No preamble, no '
+          'headings, no quotes — just the synopsis.',
+      'messages': [
+        {'role': 'user', 'content': 'Journal entry:\n\n$entryBody'},
+      ],
+    });
+    final res = await _client.post(
+      Uri.parse(_endpoint),
+      headers: _headers(apiKey),
+      body: body,
+    );
+    return _extractText(res).trim();
+  }
+
+  Future<Map<String, String>> rephraseInStyles({
+    required String apiKey,
+    required String phrase,
+    required List<String> styles,
+  }) async {
+    if (phrase.trim().isEmpty) {
+      throw AiException('Write a phrase first.');
+    }
+    if (styles.isEmpty) {
+      throw AiException('Add at least one style in Settings.');
+    }
+    final body = jsonEncode({
+      'model': _model,
+      'max_tokens': 2000,
+      'system':
+          'You rewrite a phrase in the voice of given personalities or '
+          'artists. Stay close to the original meaning but transform tone, '
+          'cadence, and word choice to match each personality. Keep each '
+          'rewrite to one or two sentences. '
+          'Output STRICTLY a single JSON object: keys are the style names '
+          'exactly as given, values are the rewritten phrase strings. No '
+          'markdown fences, no commentary, no extra keys.',
+      'messages': [
+        {
+          'role': 'user',
+          'content':
+              'Phrase:\n"$phrase"\n\nStyles:\n${styles.map((s) => '- $s').join('\n')}',
+        },
+      ],
+    });
+    final res = await _client.post(
+      Uri.parse(_endpoint),
+      headers: _headers(apiKey),
+      body: body,
+    );
+    final text = _extractText(res).trim();
+    final json = _parseJsonObject(text);
+    final result = <String, String>{};
+    for (final style in styles) {
+      final value = json[style];
+      if (value is String && value.trim().isNotEmpty) {
+        result[style] = value.trim();
+      }
+    }
+    if (result.isEmpty) {
+      throw AiException('Model did not return any rephrasings.');
+    }
+    return result;
+  }
+
+  Map<String, String> _headers(String apiKey) => {
+    'content-type': 'application/json',
+    'x-api-key': apiKey,
+    'anthropic-version': _anthropicVersion,
+    'anthropic-dangerous-direct-browser-access': 'true',
+  };
+
+  String _extractText(http.Response res) {
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw AiException(_friendlyError(res));
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final content = body['content'];
+    if (content is! List) {
+      throw AiException('Unexpected response shape from Anthropic.');
+    }
+    final buffer = StringBuffer();
+    for (final block in content) {
+      if (block is Map && block['type'] == 'text' && block['text'] is String) {
+        buffer.write(block['text']);
+      }
+    }
+    final text = buffer.toString();
+    if (text.isEmpty) {
+      throw AiException('Empty response from Anthropic.');
+    }
+    return text;
+  }
+
+  Map<String, dynamic> _parseJsonObject(String text) {
+    var s = text.trim();
+    if (s.startsWith('```')) {
+      s = s.replaceFirst(RegExp(r'^```(?:json)?'), '').trim();
+      if (s.endsWith('```')) {
+        s = s.substring(0, s.length - 3).trim();
+      }
+    }
+    final start = s.indexOf('{');
+    final end = s.lastIndexOf('}');
+    if (start < 0 || end <= start) {
+      throw AiException('Could not parse JSON from model response.');
+    }
+    s = s.substring(start, end + 1);
+    final decoded = jsonDecode(s);
+    if (decoded is! Map<String, dynamic>) {
+      throw AiException('Model did not return a JSON object.');
+    }
+    return decoded;
+  }
+
+  String _friendlyError(http.Response res) {
+    try {
+      final json = jsonDecode(res.body);
+      if (json is Map &&
+          json['error'] is Map &&
+          json['error']['message'] is String) {
+        final type = json['error']['type'];
+        final msg = json['error']['message'];
+        if (res.statusCode == 401) {
+          return 'Invalid API key. Check it in Settings.';
+        }
+        if (res.statusCode == 429) {
+          return 'Rate limited by Anthropic. Try again in a moment.';
+        }
+        return '${type ?? 'Error'}: $msg';
+      }
+    } catch (_) {}
+    return 'Anthropic API error (${res.statusCode}).';
+  }
+
+  void dispose() {
+    _client.close();
+  }
+}

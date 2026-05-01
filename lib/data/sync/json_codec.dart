@@ -1,3 +1,4 @@
+import '../models/ai_favorite.dart';
 import '../models/audio_clip_meta.dart';
 import '../models/item.dart';
 import '../models/item_kind.dart';
@@ -24,6 +25,18 @@ AudioClipMeta audioClipFromJson(Map<String, dynamic> json) => AudioClipMeta(
   label: json['label'] as String?,
 );
 
+Map<String, dynamic> aiFavoriteToJson(AiFavorite f) => {
+  'style': f.style,
+  'text': f.text,
+  'createdAtMs': f.createdAtMs,
+};
+
+AiFavorite aiFavoriteFromJson(Map<String, dynamic> json) => AiFavorite(
+  style: json['style'] as String,
+  text: json['text'] as String,
+  createdAtMs: (json['createdAtMs'] as num).toInt(),
+);
+
 Map<String, dynamic> itemToJson(Item item) => {
   'id': item.id,
   'kind': item.kind.name,
@@ -33,6 +46,10 @@ Map<String, dynamic> itemToJson(Item item) => {
   'createdAtMs': item.createdAtMs,
   'updatedAtMs': item.updatedAtMs,
   if (item.deletedAtMs != null) 'deletedAtMs': item.deletedAtMs,
+  if (item.aiSynopsis != null) 'aiSynopsis': item.aiSynopsis,
+  if (item.aiRephrasings != null) 'aiRephrasings': item.aiRephrasings,
+  if (item.aiFavorites != null && item.aiFavorites!.isNotEmpty)
+    'aiFavorites': item.aiFavorites!.map(aiFavoriteToJson).toList(),
 };
 
 Item itemFromJson(Map<String, dynamic> json) => Item(
@@ -47,6 +64,12 @@ Item itemFromJson(Map<String, dynamic> json) => Item(
   createdAtMs: (json['createdAtMs'] as num).toInt(),
   updatedAtMs: (json['updatedAtMs'] as num).toInt(),
   deletedAtMs: (json['deletedAtMs'] as num?)?.toInt(),
+  aiSynopsis: json['aiSynopsis'] as String?,
+  aiRephrasings: (json['aiRephrasings'] as Map?)?.cast<String, String>(),
+  aiFavorites: (json['aiFavorites'] as List?)
+      ?.cast<Map<String, dynamic>>()
+      .map(aiFavoriteFromJson)
+      .toList(),
 );
 
 /// Manifest entry: the minimum we need to decide whether we already have the

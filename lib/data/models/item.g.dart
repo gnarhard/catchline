@@ -25,13 +25,16 @@ class ItemAdapter extends TypeAdapter<Item> {
       createdAtMs: (fields[5] as num).toInt(),
       updatedAtMs: (fields[6] as num).toInt(),
       deletedAtMs: (fields[7] as num?)?.toInt(),
+      aiSynopsis: fields[8] as String?,
+      aiRephrasings: (fields[9] as Map?)?.cast<String, String>(),
+      aiFavorites: (fields[10] as List?)?.cast<AiFavorite>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +50,13 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(6)
       ..write(obj.updatedAtMs)
       ..writeByte(7)
-      ..write(obj.deletedAtMs);
+      ..write(obj.deletedAtMs)
+      ..writeByte(8)
+      ..write(obj.aiSynopsis)
+      ..writeByte(9)
+      ..write(obj.aiRephrasings)
+      ..writeByte(10)
+      ..write(obj.aiFavorites);
   }
 
   @override

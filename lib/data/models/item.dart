@@ -1,5 +1,6 @@
 import 'package:hive_ce/hive.dart';
 
+import 'ai_favorite.dart';
 import 'audio_clip_meta.dart';
 import 'item_kind.dart';
 
@@ -31,6 +32,15 @@ class Item extends HiveObject {
   @HiveField(7)
   int? deletedAtMs;
 
+  @HiveField(8)
+  String? aiSynopsis;
+
+  @HiveField(9)
+  Map<String, String>? aiRephrasings;
+
+  @HiveField(10)
+  List<AiFavorite>? aiFavorites;
+
   Item({
     required this.id,
     required this.kind,
@@ -40,5 +50,8 @@ class Item extends HiveObject {
     required this.createdAtMs,
     required this.updatedAtMs,
     this.deletedAtMs,
+    this.aiSynopsis,
+    this.aiRephrasings,
+    this.aiFavorites,
   });
 }

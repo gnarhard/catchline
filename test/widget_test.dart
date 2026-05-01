@@ -19,7 +19,8 @@ void main() {
     Hive.registerAdapters();
     final items = await Hive.openBox<Item>(kItemsBoxName);
     final syncMeta = await Hive.openBox<dynamic>(kSyncMetaBoxName);
-    boxes = Boxes(items: items, syncMeta: syncMeta);
+    final appSettings = await Hive.openBox<dynamic>(kAppSettingsBoxName);
+    boxes = Boxes(items: items, syncMeta: syncMeta, appSettings: appSettings);
   });
 
   tearDown(() async {

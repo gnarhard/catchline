@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/sync/sync_service.dart';
+import '../../state/providers.dart';
 import '../../state/sync_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -47,6 +48,10 @@ class SettingsScreen extends ConsumerWidget {
                 const Divider(),
                 _SyncStatusTile(status: statusAsync.value ?? SyncStatus.idle),
               ],
+              const _SectionHeader('AI'),
+              const _AnthropicKeyTile(),
+              const Divider(height: 24),
+              const _PhraseStylesEditor(),
             ],
           ),
         ),
@@ -201,5 +206,259 @@ class _SyncStatusTile extends StatelessWidget {
       return '${delta ~/ (60 * 60 * 1000)} h ago';
     }
     return '${delta ~/ (24 * 60 * 60 * 1000)} d ago';
+  }
+}
+
+class _AnthropicKeyTile extends ConsumerStatefulWidget {
+  const _AnthropicKeyTile();
+
+  @override
+  ConsumerState<_AnthropicKeyTile> createState() => _AnthropicKeyTileState();
+}
+
+class _AnthropicKeyTileState extends ConsumerState<_AnthropicKeyTile> {
+  late final TextEditingController _controller;
+  bool _obscure = true;
+  bool _loaded = false;
+  bool _saving = false;
+  String _initial = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final value =
+        await ref.read(secureSettingsProvider).getAnthropicApiKey() ?? '';
+    if (!mounted) return;
+    setState(() {
+      _initial = value;
+      _controller.text = value;
+      _loaded = true;
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _isDirty => _loaded && _controller.text != _initial;
+
+  Future<void> _save() async {
+    final value = _controller.text.trim();
+    setState(() => _saving = true);
+    try {
+      await ref.read(secureSettingsProvider).setAnthropicApiKey(value);
+      if (!mounted) return;
+      setState(() {
+        _initial = value;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(value.isEmpty ? 'API key cleared.' : 'API key saved.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save key: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.key, size: 18),
+              const SizedBox(width: 12),
+              Text('Anthropic API key', style: theme.textTheme.titleMedium),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Stored in your device keychain. Used for journal synopses and phrase rephrasing.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _controller,
+            obscureText: _obscure,
+            enabled: _loaded && !_saving,
+            decoration: InputDecoration(
+              hintText: _loaded ? 'sk-ant-…' : 'Loading…',
+              border: const OutlineInputBorder(),
+              isDense: true,
+              suffixIcon: IconButton(
+                tooltip: _obscure ? 'Show' : 'Hide',
+                onPressed: () => setState(() => _obscure = !_obscure),
+                icon: Icon(
+                  _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
+                  size: 18,
+                ),
+              ),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: (_isDirty && !_saving) ? _save : null,
+              child: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhraseStylesEditor extends ConsumerStatefulWidget {
+  const _PhraseStylesEditor();
+
+  @override
+  ConsumerState<_PhraseStylesEditor> createState() =>
+      _PhraseStylesEditorState();
+}
+
+class _PhraseStylesEditorState extends ConsumerState<_PhraseStylesEditor> {
+  late List<String> _styles;
+  bool _initialized = false;
+  final _addController = TextEditingController();
+
+  @override
+  void dispose() {
+    _addController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _persist() async {
+    await ref.read(appSettingsRepoProvider).setPhraseStyles(_styles);
+  }
+
+  Future<void> _addStyle() async {
+    final value = _addController.text.trim();
+    if (value.isEmpty) return;
+    if (_styles.any((s) => s.toLowerCase() == value.toLowerCase())) {
+      _addController.clear();
+      return;
+    }
+    setState(() {
+      _styles = [..._styles, value];
+      _addController.clear();
+    });
+    await _persist();
+  }
+
+  Future<void> _removeStyle(int index) async {
+    setState(() {
+      _styles = [..._styles]..removeAt(index);
+    });
+    await _persist();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ref.watch(appSettingsRepoProvider);
+    if (!_initialized) {
+      _styles = List<String>.from(repo.phraseStyles);
+      _initialized = true;
+    }
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.sparkles, size: 18),
+              const SizedBox(width: 12),
+              Text(
+                'Phrase rephrase styles',
+                style: theme.textTheme.titleMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Names of artists, writers, or personalities. Tapping rephrase on a phrase will generate one rewrite per style.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_styles.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No styles yet. Add one below.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < _styles.length; i++)
+                  InputChip(
+                    label: Text(_styles[i]),
+                    onDeleted: () => _removeStyle(i),
+                    deleteIconColor: theme.colorScheme.onSurfaceVariant,
+                  ),
+              ],
+            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _addController,
+                  decoration: const InputDecoration(
+                    hintText: 'Add a style…',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  textInputAction: TextInputAction.done,
+                  textCapitalization: TextCapitalization.words,
+                  onSubmitted: (_) => _addStyle(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: _addStyle,
+                icon: const Icon(LucideIcons.plus, size: 16),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

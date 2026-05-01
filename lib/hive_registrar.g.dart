@@ -3,12 +3,14 @@
 // Check in to version control
 
 import 'package:hive_ce/hive_ce.dart';
+import 'package:catchline/data/models/ai_favorite.dart';
 import 'package:catchline/data/models/audio_clip_meta.dart';
 import 'package:catchline/data/models/item.dart';
 import 'package:catchline/data/models/item_kind.dart';
 
 extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
+    registerAdapter(AiFavoriteAdapter());
     registerAdapter(AudioClipMetaAdapter());
     registerAdapter(ItemAdapter());
     registerAdapter(ItemKindAdapter());
@@ -17,6 +19,7 @@ extension HiveRegistrar on HiveInterface {
 
 extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
+    registerAdapter(AiFavoriteAdapter());
     registerAdapter(AudioClipMetaAdapter());
     registerAdapter(ItemAdapter());
     registerAdapter(ItemKindAdapter());

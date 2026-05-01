@@ -5,7 +5,12 @@ import '../hive_registrar.g.dart';
 import 'models/item.dart';
 
 class Boxes {
-  Boxes({required this.items, required this.syncMeta, this.audioBytes});
+  Boxes({
+    required this.items,
+    required this.syncMeta,
+    required this.appSettings,
+    this.audioBytes,
+  });
 
   final Box<Item> items;
 
@@ -18,11 +23,16 @@ class Boxes {
   /// timestamps). Keys are scoped by Google account email so signing into a
   /// different account does not leak state from another.
   final Box<dynamic> syncMeta;
+
+  /// User-tunable app settings: Anthropic API key, configured phrase
+  /// rephrase styles, etc.
+  final Box<dynamic> appSettings;
 }
 
 const String kItemsBoxName = 'items';
 const String kAudioBytesBoxName = 'audioBytes';
 const String kSyncMetaBoxName = 'sync_meta';
+const String kAppSettingsBoxName = 'app_settings';
 
 Future<Boxes> openBoxes() async {
   await Hive.initFlutter();
@@ -30,9 +40,15 @@ Future<Boxes> openBoxes() async {
 
   final items = await Hive.openBox<Item>(kItemsBoxName);
   final syncMeta = await Hive.openBox<dynamic>(kSyncMetaBoxName);
+  final appSettings = await Hive.openBox<dynamic>(kAppSettingsBoxName);
   final audioBytes = kIsWeb
       ? await Hive.openBox<Uint8List>(kAudioBytesBoxName)
       : null;
 
-  return Boxes(items: items, syncMeta: syncMeta, audioBytes: audioBytes);
+  return Boxes(
+    items: items,
+    syncMeta: syncMeta,
+    appSettings: appSettings,
+    audioBytes: audioBytes,
+  );
 }

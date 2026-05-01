@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../data/ai_service.dart';
+import '../../data/models/ai_favorite.dart';
 import '../../data/models/audio_clip_meta.dart';
 import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
 import '../../state/providers.dart';
 import '../../util/journal_date.dart';
+import 'widgets/ai_favorites_section.dart';
+import 'widgets/ai_rephrase_button.dart';
+import 'widgets/ai_synopsis_card.dart';
 import 'widgets/audio_clip_tile.dart';
 import 'widgets/audio_recorder.dart';
 
@@ -27,6 +32,10 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   late String _initialTitle;
   late String _initialBody;
   late int _createdAtMs;
+  String? _aiSynopsis;
+  Map<String, String>? _aiRephrasings;
+  List<AiFavorite> _aiFavorites = const [];
+  bool _generatingSynopsis = false;
   bool _initialized = false;
 
   @override
@@ -44,6 +53,13 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     _initialTitle = item.title;
     _initialBody = item.textBody;
     _createdAtMs = item.createdAtMs;
+    _aiSynopsis = item.aiSynopsis;
+    _aiRephrasings = item.aiRephrasings == null
+        ? null
+        : Map<String, String>.from(item.aiRephrasings!);
+    _aiFavorites = item.aiFavorites == null
+        ? const []
+        : List<AiFavorite>.from(item.aiFavorites!);
     _initialized = true;
   }
 
@@ -69,6 +85,11 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     item.textBody = _body.text;
     item.audioClips = List<AudioClipMeta>.from(_clips);
     item.createdAtMs = _createdAtMs;
+    item.aiSynopsis = _aiSynopsis;
+    item.aiRephrasings = _aiRephrasings;
+    item.aiFavorites = _aiFavorites.isEmpty
+        ? null
+        : List<AiFavorite>.from(_aiFavorites);
     item.updatedAtMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     await ref.read(itemsRepoProvider).put(item);
     _initialTitle = _title.text;
@@ -99,9 +120,86 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     item.textBody = newBody;
     item.audioClips = List<AudioClipMeta>.from(_clips);
     item.createdAtMs = _createdAtMs;
+    item.aiSynopsis = _aiSynopsis;
+    item.aiRephrasings = _aiRephrasings;
+    item.aiFavorites = _aiFavorites.isEmpty
+        ? null
+        : List<AiFavorite>.from(_aiFavorites);
     item.updatedAtMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     await ref.read(itemsRepoProvider).put(item);
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _generateSynopsis() async {
+    final body = _body.text.trim();
+    if (body.isEmpty) {
+      _showSnack('Write something in the entry first.');
+      return;
+    }
+    setState(() => _generatingSynopsis = true);
+    try {
+      final apiKey = await ref
+          .read(secureSettingsProvider)
+          .getAnthropicApiKey();
+      if (apiKey == null) {
+        _showSnack('Add your Anthropic API key in Settings first.');
+        return;
+      }
+      final synopsis = await ref
+          .read(aiServiceProvider)
+          .generateJournalSynopsis(apiKey: apiKey, entryBody: body);
+      if (!mounted) return;
+      setState(() => _aiSynopsis = synopsis);
+      await _persistInlineChange();
+    } on AiException catch (e) {
+      _showSnack(e.message);
+    } catch (e) {
+      _showSnack('Failed to generate synopsis: $e');
+    } finally {
+      if (mounted) setState(() => _generatingSynopsis = false);
+    }
+  }
+
+  Future<void> _clearSynopsis() async {
+    setState(() => _aiSynopsis = null);
+    await _persistInlineChange();
+  }
+
+  Future<void> _toggleFavorite(String style, String text) async {
+    final existingIndex = _aiFavorites.indexWhere(
+      (f) => f.style == style && f.text == text,
+    );
+    setState(() {
+      if (existingIndex >= 0) {
+        _aiFavorites = [..._aiFavorites]..removeAt(existingIndex);
+      } else {
+        _aiFavorites = [
+          ..._aiFavorites,
+          AiFavorite(
+            style: style,
+            text: text,
+            createdAtMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+          ),
+        ];
+      }
+    });
+    await _persistInlineChange();
+  }
+
+  Future<void> _removeFavorite(AiFavorite favorite) async {
+    setState(() {
+      _aiFavorites = _aiFavorites
+          .where((f) => !(f.style == favorite.style && f.text == favorite.text))
+          .toList();
+    });
+    await _persistInlineChange();
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickJournalDate() async {
@@ -379,6 +477,35 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                     height: 1,
                     color: colorScheme.outlineVariant.withAlpha(140),
                   ),
+                  if (widget.kind == ItemKind.journal) ...[
+                    const SizedBox(height: 24),
+                    AiSynopsisCard(
+                      synopsis: _aiSynopsis,
+                      isGenerating: _generatingSynopsis,
+                      onGenerate: _generateSynopsis,
+                      onClear: _clearSynopsis,
+                    ),
+                  ],
+                  if (widget.kind == ItemKind.phrase) ...[
+                    const SizedBox(height: 24),
+                    AiRephraseButton(
+                      phraseText: _body.text,
+                      cachedRephrasings: _aiRephrasings,
+                      favorites: _aiFavorites,
+                      onSaveResults: (results) async {
+                        setState(() => _aiRephrasings = results);
+                        await _persistInlineChange();
+                      },
+                      onToggleFavorite: _toggleFavorite,
+                    ),
+                    if (_aiFavorites.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      AiFavoritesSection(
+                        favorites: _aiFavorites,
+                        onRemove: _removeFavorite,
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: 28),
                   Text(
                     'Audio',

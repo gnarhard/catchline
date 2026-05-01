@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this app is
 
-Catchline is an **offline-first** Flutter app for capturing four kinds of personal notes: journal entries, poems, lyrics, and phrases. Each item has a title, a text body, and a list of multiple recorded audio clips. v1 ships on iOS, Android, macOS, and web. Phone is the **primary target** — UI is single-column, phone-sized, with a bottom NavigationBar; desktop and web simply scale the same layout up (with a max-width column on wide screens). No network calls, ever — no analytics, no remote fonts, no cloud sync.
+Catchline is an **offline-first** Flutter app for capturing four kinds of personal notes: journal entries, poems, lyrics, and phrases. Each item has a title, a text body, and a list of multiple recorded audio clips. v1 ships on iOS, Android, macOS, and web. Phone is the **primary target** — UI is single-column, phone-sized, with a bottom NavigationBar; desktop and web simply scale the same layout up (with a max-width column on wide screens). The only network calls are user-opt-in: Google Drive sync (after sign-in) and Anthropic API calls for journal synopses + phrase rephrasing (after the user pastes their own API key in Settings). No analytics, no remote fonts, no telemetry.
 
 ## Architecture at a glance
 
@@ -31,6 +31,9 @@ lib/
     models/{item,item_kind,audio_clip_meta}.dart    # @HiveType, with .g.dart adapters
     boxes.dart                    # openBoxes() — Hive.initFlutter + adapter registration
     items_repository.dart
+    app_settings_repository.dart  # phrase styles list (Hive Box<dynamic>)
+    secure_settings.dart          # Anthropic API key (flutter_secure_storage; Keychain/Keystore/DPAPI/libsecret)
+    ai_service.dart               # Anthropic Messages API client (sonnet)
     audio_repository.dart         # abstract interface + factory
     audio_repository_io.dart      # native impl
     audio_repository_web.dart     # web impl
@@ -46,7 +49,7 @@ lib/
   util/{id,text_preview}.dart
 ```
 
-Hive typeIds reserved: `0=ItemKind`, `1=AudioClipMeta`, `2=Item`. Never reuse a removed `@HiveField` number — bump to a new one when evolving the schema.
+Hive typeIds reserved: `0=ItemKind`, `1=AudioClipMeta`, `2=Item`, `3=AiFavorite`. Never reuse a removed `@HiveField` number — bump to a new one when evolving the schema.
 
 ## Critical native config
 
