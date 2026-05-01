@@ -7,6 +7,7 @@ import '../../data/models/item_kind.dart';
 import '../../state/items_notifier.dart';
 import '../../state/providers.dart';
 import '../../util/id.dart';
+import '../../util/instant_page_route.dart';
 import '../settings/settings_screen.dart';
 import 'item_edit_screen.dart';
 import 'widgets/empty_state.dart';
@@ -30,7 +31,7 @@ class ItemListScreen extends ConsumerWidget {
             icon: const Icon(LucideIcons.settings),
             tooltip: 'Settings',
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+              InstantPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],
@@ -66,7 +67,7 @@ class ItemListScreen extends ConsumerWidget {
 
   void _open(BuildContext context, Item item) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      InstantPageRoute<void>(
         builder: (_) => ItemEditScreen(itemId: item.id, kind: item.kind),
       ),
     );
@@ -86,7 +87,7 @@ class ItemListScreen extends ConsumerWidget {
     await ref.read(itemsRepoProvider).put(item);
     if (!context.mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      InstantPageRoute<void>(
         builder: (_) => ItemEditScreen(itemId: item.id, kind: kind),
       ),
     );
