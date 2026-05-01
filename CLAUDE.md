@@ -85,6 +85,10 @@ dart run build_runner build --delete-conflicting-outputs
 
 `analysis_options.yaml` excludes `**/*.g.dart` and includes `package:flutter_lints/flutter.yaml`. Don't loosen the lint set — prefer per-line `// ignore:` if you must suppress.
 
+## Testing
+
+**Every feature must ship with unit tests.** Scope is unit tests only at this stage — no widget tests, no integration tests yet. Cover the feature's logic (repositories, notifiers, services, pure functions); skip pure UI wiring. Tests live under `test/` mirroring `lib/` (e.g. `lib/data/items_repository.dart` → `test/data/items_repository_test.dart`). Run via `mcp__dart__run_tests`. A feature is not done until its tests pass.
+
 ## Web dev
 
 `getUserMedia` requires a secure context — use localhost (e.g., `flutter run -d chrome --web-port=5000`) or HTTPS. Pin the dev port so IndexedDB origin is stable across sessions and clips persist between runs.
