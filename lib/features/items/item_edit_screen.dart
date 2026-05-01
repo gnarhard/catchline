@@ -290,6 +290,28 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
+          leading: _isDirty
+              ? Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Material(
+                    color: colorScheme.primary,
+                    shape: const CircleBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: _saveAndPop,
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(
+                          LucideIcons.check,
+                          size: 18,
+                          color: colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : null,
           title: appBarTitle,
           actions: [
             IconButton(
@@ -387,12 +409,6 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                         index: i,
                         onDelete: () => _deleteClip(i),
                       ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: _saveAndPop,
-                    icon: const Icon(LucideIcons.check, size: 18),
-                    label: const Text('Save'),
-                  ),
                   const SizedBox(height: 24),
                 ],
               ),
