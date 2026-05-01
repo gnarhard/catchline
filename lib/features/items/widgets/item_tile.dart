@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../data/models/item.dart';
 import '../../../data/models/item_kind.dart';
+import '../../../util/journal_date.dart';
 import '../../../util/text_preview.dart';
 
 class ItemTile extends StatelessWidget {
@@ -17,52 +18,82 @@ class ItemTile extends StatelessWidget {
     final preview = textPreview(item.textBody);
     final hasBody = preview.isNotEmpty;
     final hasClips = item.audioClips.isNotEmpty;
-    final isPhrase = item.kind == ItemKind.phrase;
+    final dateLabel = formatItemDate(item.createdAtMs);
+    final mutedStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
 
-    if (isPhrase) {
-      return ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-        title: Text(
-          hasBody ? preview : 'Empty phrase',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontStyle: hasBody ? FontStyle.normal : FontStyle.italic,
-            color: hasBody ? null : theme.colorScheme.onSurfaceVariant,
+    final String titleText;
+    final TextStyle? titleStyle;
+    Widget? subtitle;
+
+    switch (item.kind) {
+      case ItemKind.journal:
+        titleText = formatJournalTitle(item.createdAtMs);
+        titleStyle = theme.textTheme.titleMedium;
+        if (hasBody) {
+          subtitle = Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              preview,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          );
+        }
+      case ItemKind.phrase:
+        titleText = hasBody ? preview : 'Empty phrase';
+        titleStyle = theme.textTheme.titleMedium?.copyWith(
+          fontStyle: hasBody ? FontStyle.normal : FontStyle.italic,
+          color: hasBody ? null : theme.colorScheme.onSurfaceVariant,
+        );
+        subtitle = Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(dateLabel, style: mutedStyle),
+        );
+      case ItemKind.poem:
+      case ItemKind.lyric:
+        final hasTitle = item.title.trim().isNotEmpty;
+        titleText = hasTitle ? item.title : 'Untitled';
+        titleStyle = theme.textTheme.titleMedium?.copyWith(
+          fontStyle: hasTitle ? FontStyle.normal : FontStyle.italic,
+          color: hasTitle ? null : theme.colorScheme.onSurfaceVariant,
+        );
+        subtitle = Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(dateLabel, style: mutedStyle),
+              if (hasBody) ...[
+                const SizedBox(height: 4),
+                Text(
+                  preview,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
           ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: hasClips ? _ClipBadge(count: item.audioClips.length) : null,
-      );
+        );
     }
-
-    final hasTitle = item.title.trim().isNotEmpty;
 
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       title: Text(
-        hasTitle ? item.title : 'Untitled',
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontStyle: hasTitle ? FontStyle.normal : FontStyle.italic,
-          color: hasTitle ? null : theme.colorScheme.onSurfaceVariant,
-        ),
-        maxLines: 1,
+        titleText,
+        style: titleStyle,
+        maxLines: item.kind == ItemKind.phrase ? 2 : 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: hasBody
-          ? Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                preview,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            )
-          : null,
+      subtitle: subtitle,
       trailing: hasClips ? _ClipBadge(count: item.audioClips.length) : null,
     );
   }

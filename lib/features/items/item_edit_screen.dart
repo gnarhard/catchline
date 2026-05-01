@@ -6,6 +6,7 @@ import '../../data/models/audio_clip_meta.dart';
 import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
 import '../../state/providers.dart';
+import '../../util/journal_date.dart';
 import 'widgets/audio_clip_tile.dart';
 import 'widgets/audio_recorder.dart';
 
@@ -51,7 +52,8 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     super.dispose();
   }
 
-  bool get _hasTitle => widget.kind != ItemKind.phrase;
+  bool get _hasTitle =>
+      widget.kind != ItemKind.phrase && widget.kind != ItemKind.journal;
 
   bool get _isDirty =>
       (_hasTitle && _title.text != _initialTitle) || _body.text != _initialBody;
@@ -216,8 +218,13 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final singular = widget.kind.singular;
-    final titleLabel = singular[0].toUpperCase() + singular.substring(1);
+    final String titleLabel;
+    if (widget.kind == ItemKind.journal) {
+      titleLabel = formatJournalTitle(item.createdAtMs);
+    } else {
+      final singular = widget.kind.singular;
+      titleLabel = singular[0].toUpperCase() + singular.substring(1);
+    }
 
     return PopScope(
       canPop: false,
