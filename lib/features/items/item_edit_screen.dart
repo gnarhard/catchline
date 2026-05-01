@@ -26,6 +26,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   late List<AudioClipMeta> _clips;
   late String _initialTitle;
   late String _initialBody;
+  late int _createdAtMs;
   bool _initialized = false;
 
   @override
@@ -42,6 +43,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     _clips = List<AudioClipMeta>.from(item.audioClips);
     _initialTitle = item.title;
     _initialBody = item.textBody;
+    _createdAtMs = item.createdAtMs;
     _initialized = true;
   }
 
@@ -60,12 +62,13 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
 
   Item? _readItem() => ref.read(itemsRepoProvider).get(widget.itemId);
 
-  Future<void> _persistClipsChange() async {
+  Future<void> _persistInlineChange() async {
     final item = _readItem();
     if (item == null) return;
     item.title = _title.text;
     item.textBody = _body.text;
     item.audioClips = List<AudioClipMeta>.from(_clips);
+    item.createdAtMs = _createdAtMs;
     item.updatedAtMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     await ref.read(itemsRepoProvider).put(item);
     _initialTitle = _title.text;
@@ -95,9 +98,34 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     item.title = newTitle;
     item.textBody = newBody;
     item.audioClips = List<AudioClipMeta>.from(_clips);
+    item.createdAtMs = _createdAtMs;
     item.updatedAtMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     await ref.read(itemsRepoProvider).put(item);
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _pickJournalDate() async {
+    final current = DateTime.fromMillisecondsSinceEpoch(_createdAtMs).toLocal();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked == null) return;
+    final newLocal = DateTime(
+      picked.year,
+      picked.month,
+      picked.day,
+      current.hour,
+      current.minute,
+      current.second,
+      current.millisecond,
+    );
+    final newMs = newLocal.toUtc().millisecondsSinceEpoch;
+    if (newMs == _createdAtMs) return;
+    setState(() => _createdAtMs = newMs);
+    await _persistInlineChange();
   }
 
   Future<bool> _confirmDiscard() async {
@@ -193,12 +221,12 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     final clip = _clips[index];
     await ref.read(audioRepoProvider).delete(clip);
     setState(() => _clips.removeAt(index));
-    await _persistClipsChange();
+    await _persistInlineChange();
   }
 
   Future<void> _onClipRecorded(AudioClipMeta meta) async {
     setState(() => _clips.add(meta));
-    await _persistClipsChange();
+    await _persistInlineChange();
   }
 
   @override
@@ -218,12 +246,37 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final String titleLabel;
-    if (widget.kind == ItemKind.journal) {
-      titleLabel = formatJournalTitle(item.createdAtMs);
+    final isJournal = widget.kind == ItemKind.journal;
+    final Widget appBarTitle;
+    if (isJournal) {
+      appBarTitle = InkWell(
+        onTap: _pickJournalDate,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  formatJournalTitle(_createdAtMs),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                LucideIcons.chevronDown,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      );
     } else {
       final singular = widget.kind.singular;
-      titleLabel = singular[0].toUpperCase() + singular.substring(1);
+      final label = singular[0].toUpperCase() + singular.substring(1);
+      appBarTitle = Text(label);
     }
 
     return PopScope(
@@ -237,7 +290,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text(titleLabel),
+          title: appBarTitle,
           actions: [
             IconButton(
               tooltip: 'Delete',
@@ -270,6 +323,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,
                       ),
+                      textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
                       onChanged: (_) => setState(() {}),
                     ),
