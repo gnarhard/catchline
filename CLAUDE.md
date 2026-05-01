@@ -89,6 +89,12 @@ dart run build_runner build --delete-conflicting-outputs
 
 **Every feature must ship with unit tests.** Scope is unit tests only at this stage — no widget tests, no integration tests yet. Cover the feature's logic (repositories, notifiers, services, pure functions); skip pure UI wiring. Tests live under `test/` mirroring `lib/` (e.g. `lib/data/items_repository.dart` → `test/data/items_repository_test.dart`). Run via `mcp__dart__run_tests`. A feature is not done until its tests pass.
 
+**Tests gate "done".** Before declaring any code change complete — feature, bug fix, or refactor — you must (1) update existing tests the change affects, (2) add new tests for any new logic, and (3) run the full suite via `mcp__dart__run_tests` and confirm it is green. Never report a task complete with failing or missing tests.
+
+## Memory policy
+
+Do not write to the persistent memory system for this project. CLAUDE.md is the single source of truth for project context, conventions, and behavioral rules. If something is worth remembering across sessions, propose adding it here instead of saving a memory file.
+
 ## Web dev
 
 `getUserMedia` requires a secure context — use localhost (e.g., `flutter run -d chrome --web-port=5000`) or HTTPS. Pin the dev port so IndexedDB origin is stable across sessions and clips persist between runs.
