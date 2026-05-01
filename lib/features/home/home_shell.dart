@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/models/item_kind.dart';
 import '../items/item_list_screen.dart';
+import '../settings/settings_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -24,7 +25,10 @@ class _HomeShellState extends State<HomeShell> {
         bottom: false,
         child: IndexedStack(
           index: _index,
-          children: [for (final kind in _kinds) ItemListScreen(kind: kind)],
+          children: [
+            for (final kind in _kinds) ItemListScreen(kind: kind),
+            const SettingsScreen(),
+          ],
         ),
       ),
       bottomNavigationBar: NavigationBar(
@@ -43,6 +47,10 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
             icon: Icon(LucideIcons.quote),
             label: 'Phrases',
+          ),
+          NavigationDestination(
+            icon: Icon(LucideIcons.settings),
+            label: 'Settings',
           ),
         ],
       ),

@@ -25,12 +25,6 @@ class EmptyState extends StatelessWidget {
             style: theme.textTheme.titleLarge,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
-          Text(
-            _bodyFor(kind),
-            style: theme.textTheme.bodyMedium?.copyWith(color: color),
-            textAlign: TextAlign.center,
-          ),
         ],
       ),
     );
@@ -48,14 +42,5 @@ class EmptyState extends StatelessWidget {
     ItemKind.poem => 'No poems yet',
     ItemKind.lyric => 'No lyrics yet',
     ItemKind.phrase => 'No phrases yet',
-  };
-
-  String _bodyFor(ItemKind kind) => switch (kind) {
-    ItemKind.journal =>
-      'Tap New to write your first entry or record a voice note.',
-    ItemKind.poem =>
-      'Tap New to capture a poem — words on the page or read aloud.',
-    ItemKind.lyric => 'Tap New to save a lyric you want to remember.',
-    ItemKind.phrase => 'Tap New to save a phrase you find catchy.',
   };
 }
