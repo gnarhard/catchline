@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/item_kind.dart';
 import '../../../data/models/tag_palette.dart';
+import '../../../state/providers.dart';
 import '../../../theme/app_theme.dart';
 
 /// Inline tag picker — a labeled `TAG` row with a wrap of selectable chips.
@@ -9,7 +11,7 @@ import '../../../theme/app_theme.dart';
 /// Chip-on-chip selection per the design's "PhraseCapture" / "TagPickerInline"
 /// mockup: the selected chip fills with the tag color; unselected chips show
 /// a small colored dot + label on a neutral pill.
-class TagPicker extends StatelessWidget {
+class TagPicker extends ConsumerWidget {
   const TagPicker({
     super.key,
     required this.kind,
@@ -26,8 +28,8 @@ class TagPicker extends StatelessWidget {
   final bool allowClear;
 
   @override
-  Widget build(BuildContext context) {
-    final tags = defaultTagsFor(kind);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tags = ref.watch(tagsForKindProvider(kind));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -41,19 +43,25 @@ class TagPicker extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final t in tags)
-              _PickerChip(
-                tag: t,
-                selected: t.id == selected,
-                onTap: () =>
-                    onChanged(allowClear && selected == t.id ? null : t.id),
-              ),
-          ],
-        ),
+        if (tags.isEmpty)
+          const Text(
+            'No tags assigned to this kind. Add one in Settings.',
+            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+          )
+        else
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final t in tags)
+                _PickerChip(
+                  tag: t,
+                  selected: t.id == selected,
+                  onTap: () =>
+                      onChanged(allowClear && selected == t.id ? null : t.id),
+                ),
+            ],
+          ),
       ],
     );
   }

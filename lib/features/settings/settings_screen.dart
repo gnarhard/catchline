@@ -9,8 +9,9 @@ import '../../state/items_notifier.dart';
 import '../../state/providers.dart';
 import '../../state/sync_providers.dart';
 import '../../data/models/item_kind.dart';
-import '../../data/models/tag_palette.dart';
 import '../../theme/app_theme.dart';
+import '../../util/instant_page_route.dart';
+import 'tag_editor_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -610,19 +611,10 @@ class _TagsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(itemsProvider);
-    final byKind = <ItemKind, int>{for (final kind in ItemKind.values) kind: 0};
+    final tagged = <ItemKind, int>{for (final kind in ItemKind.values) kind: 0};
     for (final item in all) {
-      if (item.tag != null) byKind[item.kind] = (byKind[item.kind] ?? 0) + 1;
+      if (item.tag != null) tagged[item.kind] = (tagged[item.kind] ?? 0) + 1;
     }
-    final rows = ItemKind.values
-        .map(
-          (k) => _TagsRow(
-            label: '${_kindAdjective(k)} tags',
-            tagged: byKind[k] ?? 0,
-            availableTags: defaultTagsFor(k).length,
-          ),
-        )
-        .toList();
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -636,9 +628,13 @@ class _TagsCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 6),
-          for (var i = 0; i < rows.length; i++) ...[
+          for (var i = 0; i < ItemKind.values.length; i++) ...[
             if (i > 0) Container(height: 1, color: const Color(0x10FFDCDC)),
-            rows[i],
+            _TagsRow(
+              kind: ItemKind.values[i],
+              label: '${_kindAdjective(ItemKind.values[i])} tags',
+              tagged: tagged[ItemKind.values[i]] ?? 0,
+            ),
           ],
         ],
       ),
@@ -653,50 +649,62 @@ class _TagsCard extends ConsumerWidget {
   };
 }
 
-class _TagsRow extends StatelessWidget {
+class _TagsRow extends ConsumerWidget {
   const _TagsRow({
+    required this.kind,
     required this.label,
     required this.tagged,
-    required this.availableTags,
   });
+  final ItemKind kind;
   final String label;
   final int tagged;
-  final int availableTags;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$availableTags available · $tagged in use',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final availableTags = ref.watch(tagsForKindProvider(kind)).length;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => Navigator.of(context).push(
+          InstantPageRoute<void>(
+            builder: (_) => TagEditorScreen(kind: kind),
           ),
-          const Icon(
-            LucideIcons.chevronRight,
-            size: 14,
-            color: AppColors.textMuted,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$availableTags available · $tagged in use',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                LucideIcons.chevronRight,
+                size: 14,
+                color: AppColors.textMuted,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

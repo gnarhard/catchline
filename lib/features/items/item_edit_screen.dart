@@ -7,6 +7,7 @@ import '../../data/models/ai_favorite.dart';
 import '../../data/models/audio_clip_meta.dart';
 import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
+import '../../data/models/tag_palette.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../util/journal_date.dart';
@@ -478,10 +479,16 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                       ],
                       if (_supportsTag) ...[
                         const SizedBox(height: 6),
-                        _TagAndDateRow(
-                          tag: _tag,
-                          createdAtMs: _createdAtMs,
-                          onTagPressed: () => _showTagPickerSheet(),
+                        Consumer(
+                          builder: (context, ref, _) => _TagAndDateRow(
+                            tag: _tag,
+                            tagDescriptor:
+                                ref.watch(tagsProvider).value
+                                    ?.where((t) => t.id == _tag)
+                                    .firstOrNull,
+                            createdAtMs: _createdAtMs,
+                            onTagPressed: _showTagPickerSheet,
+                          ),
                         ),
                       ],
                       const SizedBox(height: 14),
@@ -634,10 +641,12 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
 class _TagAndDateRow extends StatelessWidget {
   const _TagAndDateRow({
     required this.tag,
+    required this.tagDescriptor,
     required this.createdAtMs,
     required this.onTagPressed,
   });
   final String? tag;
+  final TagDescriptor? tagDescriptor;
   final int createdAtMs;
   final VoidCallback onTagPressed;
 
@@ -646,7 +655,11 @@ class _TagAndDateRow extends StatelessWidget {
     return Row(
       children: [
         if (tag != null)
-          _AssignedTag(tagId: tag!, onPressed: onTagPressed)
+          _AssignedTag(
+            tagId: tag!,
+            descriptor: tagDescriptor,
+            onPressed: onTagPressed,
+          )
         else
           _AddTagButton(onPressed: onTagPressed),
         const Spacer(),
@@ -660,11 +673,18 @@ class _TagAndDateRow extends StatelessWidget {
 }
 
 class _AssignedTag extends StatelessWidget {
-  const _AssignedTag({required this.tagId, required this.onPressed});
+  const _AssignedTag({
+    required this.tagId,
+    required this.descriptor,
+    required this.onPressed,
+  });
   final String tagId;
+  final TagDescriptor? descriptor;
   final VoidCallback onPressed;
   @override
   Widget build(BuildContext context) {
+    final color = descriptor?.color ?? AppColors.textMuted;
+    final label = descriptor?.label ?? tagId;
     return Wrap(
       spacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -679,7 +699,7 @@ class _AssignedTag extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0x0AFFDCDC),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: _tagColor(tagId).withAlpha(120)),
+                border: Border.all(color: color.withAlpha(120)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -688,13 +708,13 @@ class _AssignedTag extends StatelessWidget {
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      color: _tagColor(tagId),
+                      color: color,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _tagLabel(tagId),
+                    label,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -792,34 +812,6 @@ class _SectionLabel extends StatelessWidget {
     );
   }
 }
-
-Color _tagColor(String id) {
-  // Imported lazily to avoid pulling tag_palette into widget files.
-  // Lookup is cheap (small linear scan) and only runs on the edit screen.
-  for (final t in _palette) {
-    if (t.$1 == id) return t.$2;
-  }
-  return AppColors.textMuted;
-}
-
-String _tagLabel(String id) {
-  for (final t in _palette) {
-    if (t.$1 == id) return t.$3;
-  }
-  return id;
-}
-
-const _palette = <(String, Color, String)>[
-  ('serious', Color(0xFFC47A82), 'serious'),
-  ('funny', Color(0xFFF0C47A), 'funny'),
-  ('dark', Color(0xFF7A4A82), 'dark'),
-  ('romantic', Color(0xFFF7A0B0), 'romantic'),
-  ('hopeful', Color(0xFFA0C4A8), 'hopeful'),
-  ('lyric', Color(0xFF9AB8D4), 'lyric'),
-  ('rant', Color(0xFFD47A5A), 'rant'),
-  ('prayer', Color(0xFFE8D4A0), 'prayer'),
-  ('observation', Color(0xFFA890B0), 'observation'),
-];
 
 class _TagPickerResult {
   const _TagPickerResult(this.tag);

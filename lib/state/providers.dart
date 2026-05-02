@@ -5,7 +5,10 @@ import '../data/app_settings_repository.dart';
 import '../data/audio_repository.dart';
 import '../data/boxes.dart';
 import '../data/items_repository.dart';
+import '../data/models/item_kind.dart';
+import '../data/models/tag_palette.dart';
 import '../data/secure_settings.dart';
+import '../data/tags_repository.dart';
 
 /// Holds the open Hive boxes. Must be overridden at app bootstrap with the
 /// result of [openBoxes] — the default factory throws so a missing override
@@ -58,3 +61,27 @@ final anthropicCostUsdProvider = StreamProvider<double>((ref) async* {
     yield repo.anthropicCostUsd;
   }
 });
+
+final tagsRepoProvider = Provider<TagsRepository>((ref) {
+  final boxes = ref.watch(boxesProvider);
+  return TagsRepository(boxes.appSettings);
+});
+
+/// Streams the user's current tag palette. Emits the current value on
+/// subscribe and again on every tag-list mutation, so pickers/filters/badges
+/// reflect edits without manual invalidation.
+final tagsProvider = StreamProvider<List<TagDescriptor>>((ref) async* {
+  final repo = ref.watch(tagsRepoProvider);
+  yield repo.all;
+  await for (final _ in repo.watch()) {
+    yield repo.all;
+  }
+});
+
+/// Tags assigned to a specific item kind. Derived from [tagsProvider] so
+/// it shares the same stream subscription.
+final tagsForKindProvider =
+    Provider.family<List<TagDescriptor>, ItemKind>((ref, kind) {
+      final all = ref.watch(tagsProvider).value ?? const <TagDescriptor>[];
+      return all.where((t) => t.kinds.contains(kind)).toList();
+    });

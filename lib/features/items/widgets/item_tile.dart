@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../data/models/item.dart';
 import '../../../data/models/item_kind.dart';
-import '../../../data/models/tag_palette.dart';
+import '../../../state/providers.dart';
 import '../../../theme/app_theme.dart';
 import '../../../util/journal_date.dart';
 import '../../../util/text_preview.dart';
@@ -195,12 +196,13 @@ class _TitledRow extends StatelessWidget {
   }
 }
 
-class _TagBadge extends StatelessWidget {
+class _TagBadge extends ConsumerWidget {
   const _TagBadge({required this.tagId});
   final String tagId;
   @override
-  Widget build(BuildContext context) {
-    final tag = tagById(tagId);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tags = ref.watch(tagsProvider).value ?? const [];
+    final tag = tags.where((t) => t.id == tagId).firstOrNull;
     if (tag == null) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

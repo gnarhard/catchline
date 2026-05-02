@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/item_kind.dart';
 import '../../../data/models/tag_palette.dart';
+import '../../../state/providers.dart';
 import '../../../theme/app_theme.dart';
 
 /// Bottom sheet for filtering a list of items by one or more tags.
 ///
 /// Returns the selected tag id set when closed (null = filter cleared).
 /// Used from the filter icon in non-journal list screen headers.
-class TagFilterSheet extends StatefulWidget {
+class TagFilterSheet extends ConsumerStatefulWidget {
   const TagFilterSheet({
     super.key,
     required this.kind,
@@ -44,10 +46,10 @@ class TagFilterSheet extends StatefulWidget {
   }
 
   @override
-  State<TagFilterSheet> createState() => _TagFilterSheetState();
+  ConsumerState<TagFilterSheet> createState() => _TagFilterSheetState();
 }
 
-class _TagFilterSheetState extends State<TagFilterSheet> {
+class _TagFilterSheetState extends ConsumerState<TagFilterSheet> {
   late Set<String> _selected;
 
   @override
@@ -70,7 +72,7 @@ class _TagFilterSheetState extends State<TagFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tags = defaultTagsFor(widget.kind);
+    final tags = ref.watch(tagsForKindProvider(widget.kind));
     return SafeArea(
       top: false,
       child: Container(
