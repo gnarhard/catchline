@@ -40,7 +40,21 @@ final secureSettingsProvider = Provider<SecureSettings>((ref) {
 });
 
 final aiServiceProvider = Provider<AiService>((ref) {
-  final svc = AiService();
+  final repo = ref.watch(appSettingsRepoProvider);
+  final svc = AiService(
+    onUsage: (usage) => repo.addAnthropicCostUsd(usage.usdCost),
+  );
   ref.onDispose(svc.dispose);
   return svc;
+});
+
+/// Streams the cumulative Anthropic spend so the Settings UI updates as
+/// requests complete. First value is the current stored cost; subsequent
+/// values fire on any app-settings box change (cheap — the box is small).
+final anthropicCostUsdProvider = StreamProvider<double>((ref) async* {
+  final repo = ref.watch(appSettingsRepoProvider);
+  yield repo.anthropicCostUsd;
+  await for (final _ in repo.watch()) {
+    yield repo.anthropicCostUsd;
+  }
 });

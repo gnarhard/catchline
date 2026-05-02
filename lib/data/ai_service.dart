@@ -9,10 +9,53 @@ class AiException implements Exception {
   String toString() => message;
 }
 
+/// Token usage reported by the Anthropic Messages API for one call. Cache
+/// fields are zero when the response omits them (no prompt caching is in use
+/// on any of our calls today; kept in case that changes).
+class AiUsage {
+  const AiUsage({
+    required this.inputTokens,
+    required this.outputTokens,
+    this.cacheCreationInputTokens = 0,
+    this.cacheReadInputTokens = 0,
+  });
+
+  final int inputTokens;
+  final int outputTokens;
+  final int cacheCreationInputTokens;
+  final int cacheReadInputTokens;
+
+  /// USD cost using Anthropic Sonnet 4.x list pricing.
+  /// input $3/MTok · output $15/MTok · cache write $3.75/MTok · cache read $0.30/MTok.
+  double get usdCost =>
+      (inputTokens * 3.0 +
+          outputTokens * 15.0 +
+          cacheCreationInputTokens * 3.75 +
+          cacheReadInputTokens * 0.30) /
+      1000000.0;
+
+  static AiUsage? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final input = raw['input_tokens'];
+    final output = raw['output_tokens'];
+    if (input is! int || output is! int) return null;
+    int asInt(Object? v) => v is int ? v : 0;
+    return AiUsage(
+      inputTokens: input,
+      outputTokens: output,
+      cacheCreationInputTokens: asInt(raw['cache_creation_input_tokens']),
+      cacheReadInputTokens: asInt(raw['cache_read_input_tokens']),
+    );
+  }
+}
+
 class AiService {
-  AiService({http.Client? client}) : _client = client ?? http.Client();
+  AiService({http.Client? client, void Function(AiUsage usage)? onUsage})
+    : _client = client ?? http.Client(),
+      _onUsage = onUsage;
 
   final http.Client _client;
+  final void Function(AiUsage usage)? _onUsage;
 
   static const _endpoint = 'https://api.anthropic.com/v1/messages';
   static const _anthropicVersion = '2023-06-01';
@@ -268,6 +311,8 @@ class AiService {
     if (text.isEmpty) {
       throw AiException('Empty response from Anthropic.');
     }
+    final usage = AiUsage.fromJson(body['usage']);
+    if (usage != null) _onUsage?.call(usage);
     return text;
   }
 

@@ -24,6 +24,105 @@ Map<String, dynamic> _textBody(String text) => {
 };
 
 void main() {
+  group('AiUsage', () {
+    test('parses input/output and zero-fills missing cache fields', () {
+      final usage = AiUsage.fromJson({
+        'input_tokens': 100,
+        'output_tokens': 200,
+      });
+      expect(usage, isNotNull);
+      expect(usage!.inputTokens, 100);
+      expect(usage.outputTokens, 200);
+      expect(usage.cacheCreationInputTokens, 0);
+      expect(usage.cacheReadInputTokens, 0);
+    });
+
+    test('parses cache fields when present', () {
+      final usage = AiUsage.fromJson({
+        'input_tokens': 10,
+        'output_tokens': 20,
+        'cache_creation_input_tokens': 5,
+        'cache_read_input_tokens': 7,
+      });
+      expect(usage!.cacheCreationInputTokens, 5);
+      expect(usage.cacheReadInputTokens, 7);
+    });
+
+    test('returns null on malformed payload', () {
+      expect(AiUsage.fromJson(null), isNull);
+      expect(AiUsage.fromJson({'output_tokens': 1}), isNull);
+      expect(AiUsage.fromJson('nope'), isNull);
+    });
+
+    test('usdCost uses Sonnet 4.x list pricing', () {
+      // 1M input + 1M output = $3 + $15 = $18.
+      final u = AiUsage(inputTokens: 1000000, outputTokens: 1000000);
+      expect(u.usdCost, closeTo(18.0, 1e-9));
+    });
+
+    test('usdCost includes cache write/read pricing', () {
+      // 1M cache write = $3.75, 1M cache read = $0.30.
+      final u = AiUsage(
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationInputTokens: 1000000,
+        cacheReadInputTokens: 1000000,
+      );
+      expect(u.usdCost, closeTo(4.05, 1e-9));
+    });
+  });
+
+  group('onUsage callback', () {
+    test('fires with parsed usage after a successful call', () async {
+      final usages = <AiUsage>[];
+      final svc = AiService(
+        client: MockClient((req) async {
+          return _ok({
+            'content': [
+              {'type': 'text', 'text': 'hi'},
+            ],
+            'usage': {'input_tokens': 12, 'output_tokens': 34},
+          });
+        }),
+        onUsage: usages.add,
+      );
+
+      await svc.generateJournalSynopsis(apiKey: 'sk', entryBody: 'body');
+      expect(usages, hasLength(1));
+      expect(usages.first.inputTokens, 12);
+      expect(usages.first.outputTokens, 34);
+    });
+
+    test('does not fire when the response omits usage', () async {
+      final usages = <AiUsage>[];
+      final svc = AiService(
+        client: MockClient((req) async {
+          return _ok(_textBody('hi'));
+        }),
+        onUsage: usages.add,
+      );
+      await svc.generateJournalSynopsis(apiKey: 'sk', entryBody: 'body');
+      expect(usages, isEmpty);
+    });
+
+    test('does not fire on HTTP errors', () async {
+      final usages = <AiUsage>[];
+      final svc = AiService(
+        client: MockClient((req) async {
+          return _err(401, {
+            'error': {'type': 'authentication_error', 'message': 'bad key'},
+          });
+        }),
+        onUsage: usages.add,
+      );
+      await expectLater(
+        svc.generateJournalSynopsis(apiKey: 'sk', entryBody: 'body'),
+        throwsA(isA<AiException>()),
+      );
+      expect(usages, isEmpty);
+    });
+  });
+
   group('generateJournalSynopsis', () {
     test('returns the text block trimmed', () async {
       late http.Request seen;

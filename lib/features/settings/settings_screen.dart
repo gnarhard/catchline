@@ -475,6 +475,7 @@ class _AiKeyCardState extends ConsumerState<_AiKeyCard> {
 
   @override
   Widget build(BuildContext context) {
+    final cost = ref.watch(anthropicCostUsdProvider).value ?? 0.0;
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -504,6 +505,7 @@ class _AiKeyCardState extends ConsumerState<_AiKeyCard> {
           ),
           const SizedBox(height: 10),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: TextField(
@@ -532,35 +534,74 @@ class _AiKeyCardState extends ConsumerState<_AiKeyCard> {
                   color: AppColors.textMuted,
                 ),
               ),
+              const SizedBox(width: 4),
+              FilledButton(
+                onPressed: (_isDirty && !_saving) ? _save : null,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save'),
+              ),
             ],
           ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: (_isDirty && !_saving) ? _save : null,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              child: _saving
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
-            ),
-          ),
+          const SizedBox(height: 12),
+          _UsageRow(costUsd: cost),
         ],
       ),
     );
+  }
+}
+
+class _UsageRow extends StatelessWidget {
+  const _UsageRow({required this.costUsd});
+  final double costUsd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(
+          LucideIcons.circleDollarSign,
+          size: 13,
+          color: AppColors.textMuted,
+        ),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            'API usage so far',
+            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+        ),
+        Text(
+          _formatUsd(costUsd),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textDim,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _formatUsd(double v) {
+    if (v <= 0) return '\$0.00';
+    if (v >= 1.0) return '\$${v.toStringAsFixed(2)}';
+    return '\$${v.toStringAsFixed(4)}';
   }
 }
 

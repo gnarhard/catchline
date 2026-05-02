@@ -59,6 +59,41 @@ void main() {
     },
   );
 
+  group('anthropic cost', () {
+    test('defaults to 0 when nothing is stored', () {
+      expect(repo.anthropicCostUsd, 0.0);
+    });
+
+    test('falls back to 0 for malformed stored value', () async {
+      await box.put('anthropic_cost_usd', 'not a number');
+      expect(repo.anthropicCostUsd, 0.0);
+    });
+
+    test('coerces an int to a double', () async {
+      await box.put('anthropic_cost_usd', 1);
+      expect(repo.anthropicCostUsd, 1.0);
+    });
+
+    test('addAnthropicCostUsd accumulates positive deltas', () async {
+      await repo.addAnthropicCostUsd(0.0125);
+      await repo.addAnthropicCostUsd(0.0050);
+      expect(repo.anthropicCostUsd, closeTo(0.0175, 1e-9));
+    });
+
+    test('addAnthropicCostUsd ignores zero / negative deltas', () async {
+      await repo.addAnthropicCostUsd(0.10);
+      await repo.addAnthropicCostUsd(0);
+      await repo.addAnthropicCostUsd(-0.05);
+      expect(repo.anthropicCostUsd, closeTo(0.10, 1e-9));
+    });
+
+    test('resetAnthropicCostUsd zeroes the stored value', () async {
+      await repo.addAnthropicCostUsd(1.23);
+      await repo.resetAnthropicCostUsd();
+      expect(repo.anthropicCostUsd, 0.0);
+    });
+  });
+
   test('watch() emits when the styles change', () async {
     final events = <BoxEvent>[];
     final sub = repo.watch().listen(events.add);
