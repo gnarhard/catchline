@@ -43,41 +43,50 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         titleSpacing: 16,
-        title: Row(
-          children: [
-            Icon(
-              LucideIcons.search,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _query = v),
-                textInputAction: TextInputAction.search,
-                style: theme.textTheme.bodyLarge,
-                decoration: const InputDecoration(
-                  hintText: 'Search',
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  isCollapsed: true,
-                  contentPadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          width: MediaQuery.of(context).size.width > 420 ? 320 : null,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                LucideIcons.search,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _query = v),
+                  textInputAction: TextInputAction.search,
+                  style: theme.textTheme.bodyLarge,
+                  decoration: const InputDecoration(
+                    hintText: 'Search',
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isCollapsed: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
                 ),
               ),
-            ),
-            if (isSearching)
-              IconButton(
-                icon: const Icon(LucideIcons.x, size: 18),
-                tooltip: 'Clear search',
-                visualDensity: VisualDensity.compact,
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _query = '');
-                },
-              ),
-          ],
+              if (isSearching)
+                IconButton(
+                  icon: const Icon(LucideIcons.x, size: 18),
+                  tooltip: 'Clear search',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                ),
+            ],
+          ),
         ),
       ),
       body: Center(
