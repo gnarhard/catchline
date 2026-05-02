@@ -32,17 +32,21 @@ class _HomeShellState extends State<HomeShell> {
     return Column(
       children: [
         Expanded(
-          child: SafeArea(
-            bottom: false,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: kMaxContentWidth),
-                child: IndexedStack(
-                  index: _index,
-                  children: [
-                    for (final kind in _kinds) ItemListScreen(kind: kind),
-                    const SettingsScreen(),
-                  ],
+          child: MediaQuery.removePadding(
+            context: context,
+            removeBottom: true,
+            child: SafeArea(
+              bottom: false,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: kMaxContentWidth),
+                  child: IndexedStack(
+                    index: _index,
+                    children: [
+                      for (final kind in _kinds) ItemListScreen(kind: kind),
+                      const SettingsScreen(),
+                    ],
+                  ),
                 ),
               ),
             ),
