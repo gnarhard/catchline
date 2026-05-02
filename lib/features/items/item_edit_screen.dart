@@ -9,6 +9,7 @@ import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
 import '../../state/providers.dart';
 import '../../util/journal_date.dart';
+import '../home/home_shell.dart' show kMaxContentWidth;
 import 'widgets/ai_favorites_section.dart';
 import 'widgets/ai_rephrase_button.dart';
 import 'widgets/ai_synopsis_card.dart';
@@ -331,10 +332,15 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   Widget build(BuildContext context) {
     final item = _readItem();
     if (item == null) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(title: Text(widget.kind.label)),
-        body: const Center(child: Text('Item not found.')),
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kMaxContentWidth),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(title: Text(widget.kind.label)),
+            body: const Center(child: Text('Item not found.')),
+          ),
+        ),
       );
     }
 
@@ -385,159 +391,164 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
         if (!ok) return;
         await _saveAndPop();
       },
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          leading: _isDirty
-              ? Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Material(
-                    color: colorScheme.primary,
-                    shape: const CircleBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: _saveAndPop,
-                      child: SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Icon(
-                          LucideIcons.check,
-                          size: 18,
-                          color: colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              : null,
-          title: appBarTitle,
-          actions: [
-            IconButton(
-              tooltip: 'Delete',
-              onPressed: _deleteItem,
-              icon: const Icon(LucideIcons.trash2, size: 20),
-            ),
-          ],
-        ),
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                children: [
-                  if (_hasTitle) ...[
-                    TextField(
-                      controller: _title,
-                      decoration: const InputDecoration(
-                        hintText: 'Title',
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
-                      textCapitalization: TextCapitalization.sentences,
-                      textInputAction: TextInputAction.next,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    Container(
-                      height: 1,
-                      color: colorScheme.outlineVariant.withAlpha(140),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  TextField(
-                    controller: _body,
-                    decoration: const InputDecoration(
-                      hintText: 'Write something…',
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onSurface,
-                      height: 1.6,
-                    ),
-                    minLines: 6,
-                    maxLines: null,
-                    keyboardType: TextInputType.multiline,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 1,
-                    color: colorScheme.outlineVariant.withAlpha(140),
-                  ),
-                  if (widget.kind == ItemKind.journal) ...[
-                    const SizedBox(height: 24),
-                    AiSynopsisCard(
-                      synopsis: _aiSynopsis,
-                      isGenerating: _generatingSynopsis,
-                      onGenerate: _generateSynopsis,
-                      onClear: _clearSynopsis,
-                    ),
-                  ],
-                  if (widget.kind == ItemKind.phrase) ...[
-                    const SizedBox(height: 24),
-                    AiRephraseButton(
-                      phraseText: _body.text,
-                      cachedRephrasings: _aiRephrasings,
-                      favorites: _aiFavorites,
-                      onSaveResults: (results) async {
-                        setState(() => _aiRephrasings = results);
-                        await _persistInlineChange();
-                      },
-                      onToggleFavorite: _toggleFavorite,
-                    ),
-                    if (_aiFavorites.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      AiFavoritesSection(
-                        favorites: _aiFavorites,
-                        onRemove: _removeFavorite,
-                      ),
-                    ],
-                  ],
-                  const SizedBox(height: 28),
-                  Text(
-                    'Audio',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      letterSpacing: 1.2,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  AudioRecorderButton(onClipRecorded: _onClipRecorded),
-                  const SizedBox(height: 12),
-                  if (_clips.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'No clips yet. Tap Record to capture audio.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kMaxContentWidth),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              leading: _isDirty
+                  ? Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Material(
+                        color: colorScheme.primary,
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: _saveAndPop,
+                          child: SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Icon(
+                              LucideIcons.check,
+                              size: 18,
+                              color: colorScheme.onPrimary,
+                            ),
+                          ),
                         ),
                       ),
                     )
-                  else
-                    for (var i = 0; i < _clips.length; i++)
-                      AudioClipTile(
-                        key: ValueKey(_clips[i].id),
-                        clip: _clips[i],
-                        index: i,
-                        onDelete: () => _deleteClip(i),
+                  : null,
+              title: appBarTitle,
+              actions: [
+                IconButton(
+                  tooltip: 'Delete',
+                  onPressed: _deleteItem,
+                  icon: const Icon(LucideIcons.trash2, size: 20),
+                ),
+              ],
+            ),
+            body: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    children: [
+                      if (_hasTitle) ...[
+                        TextField(
+                          controller: _title,
+                          decoration: const InputDecoration(
+                            hintText: 'Title',
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                          textCapitalization: TextCapitalization.sentences,
+                          textInputAction: TextInputAction.next,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        Container(
+                          height: 1,
+                          color: colorScheme.outlineVariant.withAlpha(140),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      TextField(
+                        controller: _body,
+                        decoration: const InputDecoration(
+                          hintText: 'Write something…',
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: colorScheme.onSurface,
+                          height: 1.6,
+                        ),
+                        minLines: 6,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                        textCapitalization: TextCapitalization.sentences,
+                        onChanged: (_) => setState(() {}),
                       ),
-                  const SizedBox(height: 24),
-                ],
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 1,
+                        color: colorScheme.outlineVariant.withAlpha(140),
+                      ),
+                      if (widget.kind == ItemKind.journal) ...[
+                        const SizedBox(height: 24),
+                        AiSynopsisCard(
+                          synopsis: _aiSynopsis,
+                          isGenerating: _generatingSynopsis,
+                          onGenerate: _generateSynopsis,
+                          onClear: _clearSynopsis,
+                        ),
+                      ],
+                      if (widget.kind == ItemKind.phrase) ...[
+                        const SizedBox(height: 24),
+                        AiRephraseButton(
+                          phraseText: _body.text,
+                          cachedRephrasings: _aiRephrasings,
+                          favorites: _aiFavorites,
+                          onSaveResults: (results) async {
+                            setState(() => _aiRephrasings = results);
+                            await _persistInlineChange();
+                          },
+                          onToggleFavorite: _toggleFavorite,
+                        ),
+                        if (_aiFavorites.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          AiFavoritesSection(
+                            favorites: _aiFavorites,
+                            onRemove: _removeFavorite,
+                          ),
+                        ],
+                      ],
+                      const SizedBox(height: 28),
+                      Text(
+                        'Audio',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      AudioRecorderButton(onClipRecorded: _onClipRecorded),
+                      const SizedBox(height: 12),
+                      if (_clips.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'No clips yet. Tap Record to capture audio.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      else
+                        for (var i = 0; i < _clips.length; i++)
+                          AudioClipTile(
+                            key: ValueKey(_clips[i].id),
+                            clip: _clips[i],
+                            index: i,
+                            onDelete: () => _deleteClip(i),
+                          ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
