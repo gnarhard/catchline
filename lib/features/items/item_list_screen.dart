@@ -7,10 +7,10 @@ import '../../data/models/item_kind.dart';
 import '../../state/items_notifier.dart';
 import '../../state/providers.dart';
 import '../../util/id.dart';
-import '../../util/instant_page_route.dart';
 import '../../util/journal_date.dart';
 import 'item_edit_screen.dart';
 import 'widgets/empty_state.dart';
+import 'widgets/fish_hook_route.dart';
 import 'widgets/item_tile.dart';
 
 class ItemListScreen extends ConsumerStatefulWidget {
@@ -126,7 +126,7 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
 
   void _open(BuildContext context, Item item) {
     Navigator.of(context).push(
-      InstantPageRoute<void>(
+      FishHookPageRoute<void>(
         builder: (_) => ItemEditScreen(itemId: item.id, kind: item.kind),
       ),
     );
@@ -141,7 +141,7 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
           .firstOrNull;
       if (existing != null) {
         Navigator.of(context).push(
-          InstantPageRoute<void>(
+          FishHookPageRoute<void>(
             builder: (_) =>
                 ItemEditScreen(itemId: existing.id, kind: ItemKind.journal),
           ),
@@ -163,7 +163,7 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
     await ref.read(itemsRepoProvider).put(item);
     if (!context.mounted) return;
     Navigator.of(context).push(
-      InstantPageRoute<void>(
+      FishHookPageRoute<void>(
         builder: (_) => ItemEditScreen(itemId: item.id, kind: widget.kind),
       ),
     );

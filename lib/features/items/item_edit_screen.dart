@@ -14,6 +14,7 @@ import 'widgets/ai_rephrase_button.dart';
 import 'widgets/ai_synopsis_card.dart';
 import 'widgets/audio_clip_tile.dart';
 import 'widgets/audio_recorder.dart';
+import 'widgets/fish_hook_route.dart';
 
 class ItemEditScreen extends ConsumerStatefulWidget {
   const ItemEditScreen({super.key, required this.itemId, required this.kind});
@@ -127,6 +128,11 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
         : List<AiFavorite>.from(_aiFavorites);
     item.updatedAtMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     await ref.read(itemsRepoProvider).put(item);
+    if (!mounted) return;
+    final fishHook = FishHook.maybeOf(context);
+    if (fishHook != null) {
+      await fishHook.onCatch();
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
