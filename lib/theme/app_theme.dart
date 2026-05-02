@@ -141,7 +141,7 @@ ThemeData _buildTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       indicatorColor: AppColors.pillOn,
       indicatorShape: const StadiumBorder(),
-      height: 64,
+      height: 52,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
