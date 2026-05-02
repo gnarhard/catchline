@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../theme/app_theme.dart';
+
+/// Generates / displays an AI synopsis of a journal entry.
+///
+/// Visual is the design's "AI button expanded" treatment: rose-tinted card,
+/// SPARKLES eyebrow, italic Fraunces body. Idle state is the rose pill that
+/// reads "Generate synopsis".
 class AiSynopsisCard extends StatelessWidget {
   const AiSynopsisCard({
     super.key,
@@ -18,105 +25,147 @@ class AiSynopsisCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final hasSynopsis = synopsis != null && synopsis!.isNotEmpty;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Text(
-              'Synopsis',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: cs.onSurfaceVariant,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w600,
+    if (isGenerating) return const _Loading();
+    if (!hasSynopsis) {
+      return _AiPillButton(label: 'Generate synopsis', onPressed: onGenerate);
+    }
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withAlpha(15),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.accent.withAlpha(56)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.sparkles,
+                size: 13,
+                color: AppColors.accent,
               ),
-            ),
-            const Spacer(),
-            if (hasSynopsis && !isGenerating)
-              IconButton(
-                tooltip: 'Regenerate',
+              const SizedBox(width: 7),
+              const Text(
+                'SYNOPSIS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: AppColors.accent,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
                 onPressed: onGenerate,
-                icon: const Icon(LucideIcons.refreshCw, size: 18),
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Regenerate',
+                  style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                ),
               ),
-            if (hasSynopsis && !isGenerating)
               IconButton(
-                tooltip: 'Clear',
                 onPressed: onClear,
-                icon: const Icon(LucideIcons.x, size: 18),
+                icon: const Icon(LucideIcons.x, size: 14),
+                color: AppColors.textMuted,
+                visualDensity: VisualDensity.compact,
               ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (isGenerating)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withAlpha(120),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Generating…',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else if (!hasSynopsis)
-          OutlinedButton.icon(
-            onPressed: onGenerate,
-            icon: const Icon(LucideIcons.sparkles, size: 16),
-            label: const Text('Generate synopsis'),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withAlpha(120),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: cs.outlineVariant.withAlpha(120)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SelectableText(
-                  synopsis!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurface,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: synopsis!));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Synopsis copied.')),
-                      );
-                    },
-                    icon: const Icon(LucideIcons.copy, size: 14),
-                    label: const Text('Copy'),
-                  ),
-                ),
-              ],
+            ],
+          ),
+          const SizedBox(height: 4),
+          SelectableText(
+            synopsis!,
+            style: serifStyle(
+              fontSize: 13,
+              color: const Color(0xFFE8D8D8),
+              height: 1.5,
+              fontStyle: FontStyle.italic,
             ),
           ),
-      ],
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: synopsis!));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Synopsis copied.')),
+                );
+              },
+              icon: const Icon(LucideIcons.copy, size: 12),
+              label: const Text('Copy', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accentDeep,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiPillButton extends StatelessWidget {
+  const _AiPillButton({required this.label, required this.onPressed});
+  final String label;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(LucideIcons.sparkles, size: 14),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.accent,
+          side: BorderSide(color: AppColors.accent.withAlpha(102)),
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 18),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+}
+
+class _Loading extends StatelessWidget {
+  const _Loading();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withAlpha(15),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.accent.withAlpha(56)),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.accent,
+            ),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Generating…',
+            style: TextStyle(fontSize: 13, color: AppColors.textDim),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -17,23 +17,57 @@ class AppColors {
   static const Color lightScaffold = Color(0xFFFBF6F6);
   static const Color lightSurface = Color(0xFFF5EBEC);
   static const Color lightSurfaceHigh = Color(0xFFEFE0E2);
+
+  // Design palette tokens (dark-only — light theme falls back to seed-derived).
+  static const Color accent = Color(0xFFF7C4C0); // warm rose, FAB / pills
+  static const Color accentDeep = Color(0xFFE89A93); // hover / pressed accent
+  static const Color accentText = Color(0xFF5A1A20); // text on accent fill
+  static const Color textPrimary = Color(0xFFF0E6E6);
+  static const Color textDim = Color(0xFFC0A8AD);
+  static const Color textMuted = Color(0xFF8A6A72);
+  static const Color sectionLabel = Color(0xFFC47A82);
+  static const Color pillOn = Color(0xFF4A1F29);
 }
 
 const String _kFontFamily = 'Inter';
+
+/// Serif family used for titles and creative-writing content (poems, lyrics,
+/// phrases, journal body). Fraunces is the design intent; we declare it as
+/// the primary family with a system serif fallback so text still gets a
+/// serif feel even though Fraunces is not bundled.
+const String kSerifFamily = 'Fraunces';
+const List<String> kSerifFallback = ['Georgia', 'Times New Roman', 'serif'];
 
 ThemeData buildLightTheme() => _buildTheme(Brightness.light);
 ThemeData buildDarkTheme() => _buildTheme(Brightness.dark);
 
 ThemeData _buildTheme(Brightness brightness) {
   final isDark = brightness == Brightness.dark;
-  final colorScheme = ColorScheme.fromSeed(
+  final base = ColorScheme.fromSeed(
     seedColor: AppColors.maroonSeed,
     brightness: brightness,
   );
 
+  // For dark theme, lock surface tones / accent to the design palette so
+  // tag chips, FABs, and section labels match the mockup exactly.
+  final colorScheme = isDark
+      ? base.copyWith(
+          primary: AppColors.accent,
+          onPrimary: AppColors.accentText,
+          secondary: AppColors.accentDeep,
+          onSecondary: AppColors.accentText,
+          surface: AppColors.darkSurface,
+          onSurface: AppColors.textPrimary,
+          onSurfaceVariant: AppColors.textDim,
+          surfaceContainerHighest: AppColors.darkSurfaceHigh,
+          outline: AppColors.textMuted,
+          outlineVariant: const Color(0xFF3A1620),
+        )
+      : base;
+
   final scaffold = isDark ? AppColors.darkScaffold : AppColors.lightScaffold;
   final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-  final base = ThemeData(
+  final theme = ThemeData(
     useMaterial3: true,
     brightness: brightness,
     colorScheme: colorScheme,
@@ -42,33 +76,33 @@ ThemeData _buildTheme(Brightness brightness) {
     canvasColor: scaffold,
   );
 
-  final textTheme = base.textTheme
+  final textTheme = theme.textTheme
       .apply(fontFamily: _kFontFamily)
       .copyWith(
-        headlineSmall: base.textTheme.headlineSmall?.copyWith(
+        headlineSmall: theme.textTheme.headlineSmall?.copyWith(
           fontFamily: _kFontFamily,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.4,
         ),
-        titleLarge: base.textTheme.titleLarge?.copyWith(
+        titleLarge: theme.textTheme.titleLarge?.copyWith(
           fontFamily: _kFontFamily,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.3,
         ),
-        titleMedium: base.textTheme.titleMedium?.copyWith(
+        titleMedium: theme.textTheme.titleMedium?.copyWith(
           fontFamily: _kFontFamily,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
         ),
-        bodyLarge: base.textTheme.bodyLarge?.copyWith(
+        bodyLarge: theme.textTheme.bodyLarge?.copyWith(
           fontFamily: _kFontFamily,
           height: 1.5,
         ),
-        bodyMedium: base.textTheme.bodyMedium?.copyWith(
+        bodyMedium: theme.textTheme.bodyMedium?.copyWith(
           fontFamily: _kFontFamily,
           height: 1.5,
         ),
-        labelLarge: base.textTheme.labelLarge?.copyWith(
+        labelLarge: theme.textTheme.labelLarge?.copyWith(
           fontFamily: _kFontFamily,
           fontWeight: FontWeight.w500,
           letterSpacing: 0,
@@ -77,7 +111,7 @@ ThemeData _buildTheme(Brightness brightness) {
 
   final dividerColor = colorScheme.onSurface.withAlpha(isDark ? 28 : 36);
 
-  return base.copyWith(
+  return theme.copyWith(
     textTheme: textTheme,
     primaryTextTheme: textTheme,
     pageTransitionsTheme: const PageTransitionsTheme(
@@ -105,7 +139,7 @@ ThemeData _buildTheme(Brightness brightness) {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: surface.withAlpha(isDark ? 220 : 235),
       surfaceTintColor: Colors.transparent,
-      indicatorColor: colorScheme.primary.withAlpha(isDark ? 80 : 60),
+      indicatorColor: AppColors.pillOn,
       indicatorShape: const StadiumBorder(),
       height: 64,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -224,6 +258,25 @@ ThemeData _buildTheme(Brightness brightness) {
     ),
   );
 }
+
+/// Build a serif TextStyle (Fraunces with system-serif fallback).
+TextStyle serifStyle({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  FontStyle? fontStyle,
+  double? height,
+  double? letterSpacing,
+}) => TextStyle(
+  fontFamily: kSerifFamily,
+  fontFamilyFallback: kSerifFallback,
+  fontSize: fontSize,
+  fontWeight: fontWeight,
+  color: color,
+  fontStyle: fontStyle,
+  height: height,
+  letterSpacing: letterSpacing,
+);
 
 class _NoTransitionsBuilder extends PageTransitionsBuilder {
   const _NoTransitionsBuilder();

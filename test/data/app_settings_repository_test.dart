@@ -50,11 +50,14 @@ void main() {
     expect(repo.phraseStyles, ['Hozier', 'Plato']);
   });
 
-  test('setPhraseStyles with all-empty input still falls back to defaults', () async {
-    await repo.setPhraseStyles(['', '   ']);
-    // Stored list is empty -> getter falls back to defaults.
-    expect(repo.phraseStyles, kDefaultPhraseStyles);
-  });
+  test(
+    'setPhraseStyles with all-empty input still falls back to defaults',
+    () async {
+      await repo.setPhraseStyles(['', '   ']);
+      // Stored list is empty -> getter falls back to defaults.
+      expect(repo.phraseStyles, kDefaultPhraseStyles);
+    },
+  );
 
   test('watch() emits when the styles change', () async {
     final events = <BoxEvent>[];

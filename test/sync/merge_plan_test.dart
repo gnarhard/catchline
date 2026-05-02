@@ -125,8 +125,7 @@ void main() {
     });
 
     test('empty inputs produce no decisions', () {
-      expect(planMerge(remoteEntries: const {}, localItems: const {}),
-          isEmpty);
+      expect(planMerge(remoteEntries: const {}, localItems: const {}), isEmpty);
     });
 
     test('mixed batch: pull, push, noop', () {

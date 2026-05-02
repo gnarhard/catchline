@@ -8,13 +8,17 @@ import '../../data/models/audio_clip_meta.dart';
 import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
 import '../../state/providers.dart';
+import '../../theme/app_theme.dart';
 import '../../util/journal_date.dart';
 import '../home/home_shell.dart' show kMaxContentWidth;
+import 'list_filter.dart' show appendBody;
+import 'widgets/ai_actions.dart';
 import 'widgets/ai_favorites_section.dart';
 import 'widgets/ai_rephrase_button.dart';
 import 'widgets/ai_synopsis_card.dart';
 import 'widgets/audio_clip_tile.dart';
 import 'widgets/audio_recorder.dart';
+import 'widgets/tag_picker.dart';
 
 class ItemEditScreen extends ConsumerStatefulWidget {
   const ItemEditScreen({super.key, required this.itemId, required this.kind});
@@ -33,6 +37,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   late String _initialTitle;
   late String _initialBody;
   late int _createdAtMs;
+  String? _tag;
   String? _aiSynopsis;
   Map<String, String>? _aiRephrasings;
   List<AiFavorite> _aiFavorites = const [];
@@ -54,6 +59,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     _initialTitle = item.title;
     _initialBody = item.textBody;
     _createdAtMs = item.createdAtMs;
+    _tag = item.tag;
     _aiSynopsis = item.aiSynopsis;
     _aiRephrasings = item.aiRephrasings == null
         ? null
@@ -74,6 +80,8 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   bool get _hasTitle =>
       widget.kind != ItemKind.phrase && widget.kind != ItemKind.journal;
 
+  bool get _supportsTag => widget.kind != ItemKind.journal;
+
   bool get _isDirty =>
       (_hasTitle && _title.text != _initialTitle) || _body.text != _initialBody;
 
@@ -86,6 +94,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     item.textBody = _body.text;
     item.audioClips = List<AudioClipMeta>.from(_clips);
     item.createdAtMs = _createdAtMs;
+    item.tag = _tag;
     item.aiSynopsis = _aiSynopsis;
     item.aiRephrasings = _aiRephrasings;
     item.aiFavorites = _aiFavorites.isEmpty
@@ -111,7 +120,6 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
         _clips.isNotEmpty;
 
     if (!hasMeaningfulContent) {
-      // Brand-new empty item — drop it instead of leaving an "Untitled" stub.
       await ref.read(itemsRepoProvider).delete(item.id);
       if (mounted) Navigator.of(context).pop();
       return;
@@ -121,6 +129,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     item.textBody = newBody;
     item.audioClips = List<AudioClipMeta>.from(_clips);
     item.createdAtMs = _createdAtMs;
+    item.tag = _tag;
     item.aiSynopsis = _aiSynopsis;
     item.aiRephrasings = _aiRephrasings;
     item.aiFavorites = _aiFavorites.isEmpty
@@ -328,6 +337,10 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     await _persistInlineChange();
   }
 
+  void _appendToBody(String addition) {
+    setState(() => _body.text = appendBody(_body.text, addition));
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = _readItem();
@@ -365,12 +378,17 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                 child: Text(
                   formatJournalTitle(_createdAtMs),
                   overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               Icon(
                 LucideIcons.chevronDown,
-                size: 16,
+                size: 14,
                 color: colorScheme.onSurfaceVariant,
               ),
             ],
@@ -434,8 +452,8 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: ListView(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
+                      horizontal: 22,
+                      vertical: 8,
                     ),
                     children: [
                       if (_hasTitle) ...[
@@ -446,48 +464,52 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 12),
+                            contentPadding: EdgeInsets.symmetric(vertical: 8),
                           ),
-                          style: theme.textTheme.headlineSmall?.copyWith(
+                          style: serifStyle(
+                            fontSize: 28,
                             fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
+                            color: AppColors.textPrimary,
                           ),
                           textCapitalization: TextCapitalization.sentences,
                           textInputAction: TextInputAction.next,
                           onChanged: (_) => setState(() {}),
                         ),
-                        Container(
-                          height: 1,
-                          color: colorScheme.outlineVariant.withAlpha(140),
-                        ),
-                        const SizedBox(height: 16),
                       ],
+                      if (_supportsTag) ...[
+                        const SizedBox(height: 6),
+                        _TagAndDateRow(
+                          tag: _tag,
+                          createdAtMs: _createdAtMs,
+                          onTagPressed: () => _showTagPickerSheet(),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      Container(
+                        height: 1,
+                        color: colorScheme.outlineVariant.withAlpha(120),
+                      ),
+                      const SizedBox(height: 14),
                       TextField(
                         controller: _body,
-                        decoration: const InputDecoration(
-                          hintText: 'Write something…',
+                        decoration: InputDecoration(
+                          hintText: _bodyHint(widget.kind),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 6,
+                          ),
                         ),
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: colorScheme.onSurface,
-                          height: 1.6,
-                        ),
+                        style: _bodyStyle(widget.kind),
                         minLines: 6,
                         maxLines: null,
                         keyboardType: TextInputType.multiline,
                         textCapitalization: TextCapitalization.sentences,
                         onChanged: (_) => setState(() {}),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        height: 1,
-                        color: colorScheme.outlineVariant.withAlpha(140),
-                      ),
                       if (widget.kind == ItemKind.journal) ...[
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 22),
                         AiSynopsisCard(
                           synopsis: _aiSynopsis,
                           isGenerating: _generatingSynopsis,
@@ -496,7 +518,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                         ),
                       ],
                       if (widget.kind == ItemKind.phrase) ...[
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 22),
                         AiRephraseButton(
                           phraseText: _body.text,
                           cachedRephrasings: _aiRephrasings,
@@ -508,32 +530,44 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
                           onToggleFavorite: _toggleFavorite,
                         ),
                         if (_aiFavorites.isNotEmpty) ...[
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
                           AiFavoritesSection(
                             favorites: _aiFavorites,
                             onRemove: _removeFavorite,
                           ),
                         ],
                       ],
-                      const SizedBox(height: 28),
-                      Text(
-                        'Audio',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w600,
+                      if (widget.kind == ItemKind.poem) ...[
+                        const SizedBox(height: 22),
+                        PoemAiActions(
+                          titleController: _title,
+                          bodyController: _body,
+                          onAcceptTitle: (t) {
+                            setState(() => _title.text = t);
+                          },
+                          onAppendBody: _appendToBody,
                         ),
-                      ),
+                      ],
+                      if (widget.kind == ItemKind.lyric) ...[
+                        const SizedBox(height: 22),
+                        LyricAiActions(
+                          bodyController: _body,
+                          onAppendBody: _appendToBody,
+                        ),
+                      ],
+                      const SizedBox(height: 26),
+                      _SectionLabel('AUDIO'),
                       const SizedBox(height: 12),
                       AudioRecorderButton(onClipRecorded: _onClipRecorded),
                       const SizedBox(height: 12),
                       if (_clips.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
                           child: Text(
                             'No clips yet. Tap Record to capture audio.',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
                             ),
                           ),
                         )
@@ -552,6 +586,338 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showTagPickerSheet() async {
+    final result = await showModalBottomSheet<_TagPickerResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TagPickerSheet(kind: widget.kind, current: _tag),
+    );
+    if (result == null) return;
+    setState(() => _tag = result.tag);
+    await _persistInlineChange();
+  }
+
+  String _bodyHint(ItemKind kind) => switch (kind) {
+    ItemKind.journal => 'What\'s on your mind?',
+    ItemKind.poem => 'Write the poem…',
+    ItemKind.lyric => 'Write the lyric…',
+    ItemKind.phrase => 'Capture the phrase…',
+  };
+
+  TextStyle _bodyStyle(ItemKind kind) {
+    return switch (kind) {
+      ItemKind.poem || ItemKind.lyric => serifStyle(
+        fontSize: 16,
+        height: 1.7,
+        color: AppColors.textPrimary,
+      ),
+      ItemKind.phrase => serifStyle(
+        fontSize: 18,
+        height: 1.45,
+        color: AppColors.textPrimary,
+      ),
+      ItemKind.journal => serifStyle(
+        fontSize: 16,
+        height: 1.55,
+        color: AppColors.textPrimary,
+      ),
+    };
+  }
+}
+
+class _TagAndDateRow extends StatelessWidget {
+  const _TagAndDateRow({
+    required this.tag,
+    required this.createdAtMs,
+    required this.onTagPressed,
+  });
+  final String? tag;
+  final int createdAtMs;
+  final VoidCallback onTagPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (tag != null)
+          _AssignedTag(tagId: tag!, onPressed: onTagPressed)
+        else
+          _AddTagButton(onPressed: onTagPressed),
+        const Spacer(),
+        Text(
+          formatItemDate(createdAtMs),
+          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _AssignedTag extends StatelessWidget {
+  const _AssignedTag({required this.tagId, required this.onPressed});
+  final String tagId;
+  final VoidCallback onPressed;
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: onPressed,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0x0AFFDCDC),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: _tagColor(tagId).withAlpha(120)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: _tagColor(tagId),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _tagLabel(tagId),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFFE8D8D8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: onPressed,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: const Color(0x2EFFDCDC),
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.pencil,
+                    size: 10,
+                    color: AppColors.textMuted,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'change',
+                    style: TextStyle(fontSize: 10, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddTagButton extends StatelessWidget {
+  const _AddTagButton({required this.onPressed});
+  final VoidCallback onPressed;
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onPressed,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0x2EFFDCDC)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.plus, size: 11, color: AppColors.textMuted),
+              SizedBox(width: 5),
+              Text(
+                'add tag',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1,
+        color: AppColors.textMuted,
+      ),
+    );
+  }
+}
+
+Color _tagColor(String id) {
+  // Imported lazily to avoid pulling tag_palette into widget files.
+  // Lookup is cheap (small linear scan) and only runs on the edit screen.
+  for (final t in _palette) {
+    if (t.$1 == id) return t.$2;
+  }
+  return AppColors.textMuted;
+}
+
+String _tagLabel(String id) {
+  for (final t in _palette) {
+    if (t.$1 == id) return t.$3;
+  }
+  return id;
+}
+
+const _palette = <(String, Color, String)>[
+  ('serious', Color(0xFFC47A82), 'serious'),
+  ('funny', Color(0xFFF0C47A), 'funny'),
+  ('dark', Color(0xFF7A4A82), 'dark'),
+  ('romantic', Color(0xFFF7A0B0), 'romantic'),
+  ('hopeful', Color(0xFFA0C4A8), 'hopeful'),
+  ('lyric', Color(0xFF9AB8D4), 'lyric'),
+  ('rant', Color(0xFFD47A5A), 'rant'),
+  ('prayer', Color(0xFFE8D4A0), 'prayer'),
+  ('observation', Color(0xFFA890B0), 'observation'),
+];
+
+class _TagPickerResult {
+  const _TagPickerResult(this.tag);
+  final String? tag;
+}
+
+class _TagPickerSheet extends StatefulWidget {
+  const _TagPickerSheet({required this.kind, required this.current});
+  final ItemKind kind;
+  final String? current;
+
+  @override
+  State<_TagPickerSheet> createState() => _TagPickerSheetState();
+}
+
+class _TagPickerSheetState extends State<_TagPickerSheet> {
+  late String? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.current;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF2A1018), Color(0xFF1A080E)],
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(top: BorderSide(color: Color(0x14FFDCDC))),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(top: 6, bottom: 18),
+                decoration: BoxDecoration(
+                  color: const Color(0x33FFDCDC),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textMuted,
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Cancel'),
+                ),
+                const Spacer(),
+                Text(
+                  'Choose a tag',
+                  style: serifStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(_TagPickerResult(_selected)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            TagPicker(
+              kind: widget.kind,
+              selected: _selected,
+              onChanged: (id) => setState(() => _selected = id),
+              label: 'DEFAULTS',
+            ),
+            const SizedBox(height: 18),
+          ],
         ),
       ),
     );

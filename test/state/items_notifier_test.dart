@@ -17,16 +17,15 @@ Item _item({
   int createdAtMs = 1,
   int? updatedAtMs,
   List<AudioClipMeta> clips = const [],
-}) =>
-    Item(
-      id: id,
-      kind: kind,
-      title: id,
-      textBody: '',
-      audioClips: clips,
-      createdAtMs: createdAtMs,
-      updatedAtMs: updatedAtMs ?? createdAtMs,
-    );
+}) => Item(
+  id: id,
+  kind: kind,
+  title: id,
+  textBody: '',
+  audioClips: clips,
+  createdAtMs: createdAtMs,
+  updatedAtMs: updatedAtMs ?? createdAtMs,
+);
 
 void main() {
   late Directory tempDir;
@@ -43,8 +42,9 @@ void main() {
     }
     final items = await Hive.openBox<Item>('items_notifier_test');
     final syncMeta = await Hive.openBox<dynamic>('sync_meta_notifier_test');
-    final appSettings =
-        await Hive.openBox<dynamic>('app_settings_notifier_test');
+    final appSettings = await Hive.openBox<dynamic>(
+      'app_settings_notifier_test',
+    );
     boxes = Boxes(items: items, syncMeta: syncMeta, appSettings: appSettings);
     container = ProviderContainer(
       overrides: [boxesProvider.overrideWithValue(boxes)],

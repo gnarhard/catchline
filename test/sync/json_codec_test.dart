@@ -145,7 +145,10 @@ void main() {
       );
       final restored = itemFromJson(itemToJson(item));
       expect(restored.aiSynopsis, 'A reflective entry.');
-      expect(restored.aiRephrasings, {'Hozier': 'a green hush', 'Plato': 'the form'});
+      expect(restored.aiRephrasings, {
+        'Hozier': 'a green hush',
+        'Plato': 'the form',
+      });
     });
 
     test('round-trips aiFavorites', () {
@@ -169,23 +172,25 @@ void main() {
       expect(restored.aiFavorites!.last.text, 'the form');
     });
 
-    test('omits aiSynopsis/aiRephrasings/aiFavorites from JSON when null/empty',
-        () {
-      final item = Item(
-        id: 'i1',
-        kind: ItemKind.poem,
-        title: 't',
-        textBody: 'b',
-        audioClips: const [],
-        createdAtMs: 1,
-        updatedAtMs: 1,
-        aiFavorites: const [],
-      );
-      final json = itemToJson(item);
-      expect(json.containsKey('aiSynopsis'), isFalse);
-      expect(json.containsKey('aiRephrasings'), isFalse);
-      expect(json.containsKey('aiFavorites'), isFalse);
-    });
+    test(
+      'omits aiSynopsis/aiRephrasings/aiFavorites from JSON when null/empty',
+      () {
+        final item = Item(
+          id: 'i1',
+          kind: ItemKind.poem,
+          title: 't',
+          textBody: 'b',
+          audioClips: const [],
+          createdAtMs: 1,
+          updatedAtMs: 1,
+          aiFavorites: const [],
+        );
+        final json = itemToJson(item);
+        expect(json.containsKey('aiSynopsis'), isFalse);
+        expect(json.containsKey('aiRephrasings'), isFalse);
+        expect(json.containsKey('aiFavorites'), isFalse);
+      },
+    );
 
     test('decodes JSON missing optional fields without error', () {
       final item = itemFromJson({
@@ -201,6 +206,34 @@ void main() {
       expect(item.aiSynopsis, isNull);
       expect(item.aiRephrasings, isNull);
       expect(item.aiFavorites, isNull);
+      expect(item.tag, isNull);
+    });
+
+    test('round-trips tag and omits when null', () {
+      final tagged = Item(
+        id: 'i1',
+        kind: ItemKind.phrase,
+        title: '',
+        textBody: 'soft hands, hard truths',
+        audioClips: const [],
+        createdAtMs: 1,
+        updatedAtMs: 1,
+        tag: 'romantic',
+      );
+      final json = itemToJson(tagged);
+      expect(json['tag'], 'romantic');
+      expect(itemFromJson(json).tag, 'romantic');
+
+      final untagged = Item(
+        id: 'i2',
+        kind: ItemKind.phrase,
+        title: '',
+        textBody: 'untagged',
+        audioClips: const [],
+        createdAtMs: 1,
+        updatedAtMs: 1,
+      );
+      expect(itemToJson(untagged).containsKey('tag'), isFalse);
     });
   });
 

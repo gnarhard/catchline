@@ -96,6 +96,152 @@ class AiService {
     return result;
   }
 
+  /// Suggest a single short title (1–4 words) for a poem body.
+  Future<String> suggestPoemTitle({
+    required String apiKey,
+    required String poemBody,
+  }) async {
+    if (poemBody.trim().isEmpty) {
+      throw AiException('Write some of the poem first.');
+    }
+    final body = jsonEncode({
+      'model': _model,
+      'max_tokens': 60,
+      'system':
+          'You title poems. Read the poem and propose ONE title — one to four '
+          'words, in title case. The title should hint at the poem\'s emotional '
+          'center without restating it. Output ONLY the title — no quotes, no '
+          'punctuation at the end, no explanation.',
+      'messages': [
+        {'role': 'user', 'content': 'Poem:\n\n$poemBody'},
+      ],
+    });
+    final res = await _client.post(
+      Uri.parse(_endpoint),
+      headers: _headers(apiKey),
+      body: body,
+    );
+    return _cleanTitle(_extractText(res));
+  }
+
+  /// Continue a poem in the writer's existing voice. Returns 2–6 lines.
+  Future<String> continuePoem({
+    required String apiKey,
+    required String poemBody,
+    String? title,
+  }) async {
+    if (poemBody.trim().isEmpty) {
+      throw AiException('Write some of the poem first.');
+    }
+    final body = jsonEncode({
+      'model': _model,
+      'max_tokens': 400,
+      'system':
+          'You continue poems. Read the existing poem and write 2–6 more '
+          'lines that pick up the meter, voice, and imagery already on the '
+          'page. Do not restart, do not summarize, do not add a title. '
+          'Output ONLY the new lines — preserve line breaks.',
+      'messages': [
+        {
+          'role': 'user',
+          'content': title == null || title.trim().isEmpty
+              ? 'Existing poem:\n\n$poemBody'
+              : 'Existing poem (title: $title):\n\n$poemBody',
+        },
+      ],
+    });
+    final res = await _client.post(
+      Uri.parse(_endpoint),
+      headers: _headers(apiKey),
+      body: body,
+    );
+    return _extractText(res).trim();
+  }
+
+  /// Find rhymes for a single word. Returns a deduplicated list of words.
+  Future<List<String>> findRhymes({
+    required String apiKey,
+    required String word,
+    int max = 12,
+  }) async {
+    final w = word.trim();
+    if (w.isEmpty) {
+      throw AiException('Pick a word to rhyme with.');
+    }
+    final body = jsonEncode({
+      'model': _model,
+      'max_tokens': 300,
+      'system':
+          'You list rhymes for a single word. Mix true rhymes and '
+          'near/slant rhymes. Output STRICTLY a single JSON array of '
+          'lowercase strings — no markdown fences, no commentary, no extra '
+          'keys.',
+      'messages': [
+        {
+          'role': 'user',
+          'content': 'Word: $w\nReturn up to $max rhymes as a JSON array.',
+        },
+      ],
+    });
+    final res = await _client.post(
+      Uri.parse(_endpoint),
+      headers: _headers(apiKey),
+      body: body,
+    );
+    final text = _extractText(res).trim();
+    final list = _parseJsonArray(text);
+    final out = <String>[];
+    final seen = <String>{};
+    for (final v in list) {
+      if (v is! String) continue;
+      final s = v.trim().toLowerCase();
+      if (s.isEmpty) continue;
+      if (seen.add(s)) out.add(s);
+      if (out.length >= max) break;
+    }
+    if (out.isEmpty) {
+      throw AiException('Model did not return any rhymes.');
+    }
+    return out;
+  }
+
+  /// Suggest the next line of a lyric. Returns one line.
+  Future<String> suggestNextLine({
+    required String apiKey,
+    required String lyricBody,
+    String? section,
+    int? bpm,
+  }) async {
+    if (lyricBody.trim().isEmpty) {
+      throw AiException('Write some of the lyric first.');
+    }
+    final hints = <String>[];
+    if (section != null && section.trim().isNotEmpty) {
+      hints.add('Section: ${section.trim()}');
+    }
+    if (bpm != null && bpm > 0) {
+      hints.add('BPM: $bpm');
+    }
+    final prelude = hints.isEmpty ? '' : '${hints.join(' · ')}\n\n';
+    final body = jsonEncode({
+      'model': _model,
+      'max_tokens': 120,
+      'system':
+          'You write the next line of a song lyric. Match the rhyme scheme, '
+          'meter, and emotional tone of what came before. Output ONLY the '
+          'new line — one line, no quotes, no commentary, no preamble.',
+      'messages': [
+        {'role': 'user', 'content': '${prelude}Existing lyric:\n\n$lyricBody'},
+      ],
+    });
+    final res = await _client.post(
+      Uri.parse(_endpoint),
+      headers: _headers(apiKey),
+      body: body,
+    );
+    return _firstLine(_extractText(res));
+  }
+
   Map<String, String> _headers(String apiKey) => {
     'content-type': 'application/json',
     'x-api-key': apiKey,
@@ -126,13 +272,7 @@ class AiService {
   }
 
   Map<String, dynamic> _parseJsonObject(String text) {
-    var s = text.trim();
-    if (s.startsWith('```')) {
-      s = s.replaceFirst(RegExp(r'^```(?:json)?'), '').trim();
-      if (s.endsWith('```')) {
-        s = s.substring(0, s.length - 3).trim();
-      }
-    }
+    var s = _stripFences(text);
     final start = s.indexOf('{');
     final end = s.lastIndexOf('}');
     if (start < 0 || end <= start) {
@@ -144,6 +284,62 @@ class AiService {
       throw AiException('Model did not return a JSON object.');
     }
     return decoded;
+  }
+
+  List<dynamic> _parseJsonArray(String text) {
+    var s = _stripFences(text);
+    final start = s.indexOf('[');
+    final end = s.lastIndexOf(']');
+    if (start < 0 || end <= start) {
+      throw AiException('Could not parse JSON from model response.');
+    }
+    s = s.substring(start, end + 1);
+    final decoded = jsonDecode(s);
+    if (decoded is! List) {
+      throw AiException('Model did not return a JSON array.');
+    }
+    return decoded;
+  }
+
+  String _stripFences(String text) {
+    var s = text.trim();
+    if (s.startsWith('```')) {
+      s = s.replaceFirst(RegExp(r'^```(?:json)?'), '').trim();
+      if (s.endsWith('```')) {
+        s = s.substring(0, s.length - 3).trim();
+      }
+    }
+    return s;
+  }
+
+  String _cleanTitle(String text) {
+    var s = text.trim();
+    // Strip surrounding quotes / trailing punctuation that the model sometimes
+    // adds despite the prompt.
+    if ((s.startsWith('"') && s.endsWith('"')) ||
+        (s.startsWith("'") && s.endsWith("'")) ||
+        (s.startsWith('“') && s.endsWith('”'))) {
+      s = s.substring(1, s.length - 1).trim();
+    }
+    while (s.endsWith('.') || s.endsWith('!') || s.endsWith('?')) {
+      s = s.substring(0, s.length - 1).trim();
+    }
+    if (s.isEmpty) {
+      throw AiException('Empty title from model.');
+    }
+    return s;
+  }
+
+  String _firstLine(String text) {
+    final lines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) {
+      throw AiException('Empty response from Anthropic.');
+    }
+    return lines.first;
   }
 
   String _friendlyError(http.Response res) {

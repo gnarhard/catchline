@@ -50,6 +50,7 @@ Map<String, dynamic> itemToJson(Item item) => {
   if (item.aiRephrasings != null) 'aiRephrasings': item.aiRephrasings,
   if (item.aiFavorites != null && item.aiFavorites!.isNotEmpty)
     'aiFavorites': item.aiFavorites!.map(aiFavoriteToJson).toList(),
+  if (item.tag != null) 'tag': item.tag,
 };
 
 Item itemFromJson(Map<String, dynamic> json) => Item(
@@ -70,6 +71,7 @@ Item itemFromJson(Map<String, dynamic> json) => Item(
       ?.cast<Map<String, dynamic>>()
       .map(aiFavoriteFromJson)
       .toList(),
+  tag: json['tag'] as String?,
 );
 
 /// Manifest entry: the minimum we need to decide whether we already have the

@@ -7,44 +7,46 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 http.Response _ok(Object body) => http.Response(
-      body is String ? body : jsonEncode(body),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
+  body is String ? body : jsonEncode(body),
+  200,
+  headers: {'content-type': 'application/json'},
+);
 
 void main() {
   group('listAll', () {
     test('walks pages until nextPageToken is gone', () async {
       var call = 0;
-      final client = DriveClient(MockClient((req) async {
-        call++;
-        expect(req.url.queryParameters['spaces'], 'appDataFolder');
-        if (call == 1) {
-          expect(req.url.queryParameters.containsKey('pageToken'), isFalse);
+      final client = DriveClient(
+        MockClient((req) async {
+          call++;
+          expect(req.url.queryParameters['spaces'], 'appDataFolder');
+          if (call == 1) {
+            expect(req.url.queryParameters.containsKey('pageToken'), isFalse);
+            return _ok({
+              'nextPageToken': 'p2',
+              'files': [
+                {
+                  'id': 'f1',
+                  'name': 'manifest.json',
+                  'headRevisionId': 'rev1',
+                  'size': '12',
+                },
+              ],
+            });
+          }
+          expect(req.url.queryParameters['pageToken'], 'p2');
           return _ok({
-            'nextPageToken': 'p2',
             'files': [
               {
-                'id': 'f1',
-                'name': 'manifest.json',
-                'headRevisionId': 'rev1',
-                'size': '12',
+                'id': 'f2',
+                'name': 'items/abc.json',
+                'headRevisionId': 'rev2',
+                'size': '34',
               },
             ],
           });
-        }
-        expect(req.url.queryParameters['pageToken'], 'p2');
-        return _ok({
-          'files': [
-            {
-              'id': 'f2',
-              'name': 'items/abc.json',
-              'headRevisionId': 'rev2',
-              'size': '34',
-            },
-          ],
-        });
-      }));
+        }),
+      );
 
       final files = await client.listAll();
       expect(call, 2);
@@ -53,53 +55,66 @@ void main() {
     });
 
     test('throws DriveApiException on non-2xx', () async {
-      final client = DriveClient(MockClient((req) async {
-        return http.Response('boom', 500);
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          return http.Response('boom', 500);
+        }),
+      );
       await expectLater(
         client.listAll(),
-        throwsA(isA<DriveApiException>().having(
-          (e) => e.statusCode,
-          'statusCode',
-          500,
-        )),
+        throwsA(
+          isA<DriveApiException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            500,
+          ),
+        ),
       );
     });
   });
 
   group('findByName', () {
     test('returns null when no files match', () async {
-      final client = DriveClient(MockClient((req) async {
-        expect(req.url.queryParameters['q'], contains("name = 'manifest.json'"));
-        return _ok({'files': []});
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          expect(
+            req.url.queryParameters['q'],
+            contains("name = 'manifest.json'"),
+          );
+          return _ok({'files': []});
+        }),
+      );
       final hit = await client.findByName('manifest.json');
       expect(hit, isNull);
     });
 
     test('escapes single quotes in the name', () async {
       String? seenQ;
-      final client = DriveClient(MockClient((req) async {
-        seenQ = req.url.queryParameters['q'];
-        return _ok({'files': []});
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          seenQ = req.url.queryParameters['q'];
+          return _ok({'files': []});
+        }),
+      );
       await client.findByName("don't.json");
       expect(seenQ, contains(r"don\'t.json"));
     });
 
     test('returns the first file when one matches', () async {
-      final client = DriveClient(MockClient((req) async {
-        return _ok({
-          'files': [
-            {
-              'id': 'fid',
-              'name': 'manifest.json',
-              'headRevisionId': 'r',
-              'size': '7',
-            },
-          ],
-        });
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          return _ok({
+            'files': [
+              {
+                'id': 'fid',
+                'name': 'manifest.json',
+                'headRevisionId': 'r',
+                'size': '7',
+              },
+            ],
+          });
+        }),
+      );
       final hit = await client.findByName('manifest.json');
       expect(hit, isNotNull);
       expect(hit!.id, 'fid');
@@ -110,10 +125,12 @@ void main() {
   group('downloadJson', () {
     test('GETs the file with alt=media and decodes JSON', () async {
       Uri? seen;
-      final client = DriveClient(MockClient((req) async {
-        seen = req.url;
-        return _ok({'hello': 'world'});
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          seen = req.url;
+          return _ok({'hello': 'world'});
+        }),
+      );
       final out = await client.downloadJson('file-abc');
       expect(out, {'hello': 'world'});
       expect(seen!.path, endsWith('/files/file-abc'));
@@ -123,9 +140,11 @@ void main() {
 
   group('downloadBytes', () {
     test('returns the response body bytes', () async {
-      final client = DriveClient(MockClient((req) async {
-        return http.Response.bytes([0x01, 0x02, 0x03], 200);
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          return http.Response.bytes([0x01, 0x02, 0x03], 200);
+        }),
+      );
       final out = await client.downloadBytes('id');
       expect(out, Uint8List.fromList([0x01, 0x02, 0x03]));
     });
@@ -134,15 +153,17 @@ void main() {
   group('createJson', () {
     test('POSTs multipart and returns parsed metadata', () async {
       late http.Request seen;
-      final client = DriveClient(MockClient((req) async {
-        seen = req;
-        return _ok({
-          'id': 'newid',
-          'name': 'manifest.json',
-          'headRevisionId': 'rev9',
-          'size': '5',
-        });
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          seen = req;
+          return _ok({
+            'id': 'newid',
+            'name': 'manifest.json',
+            'headRevisionId': 'rev9',
+            'size': '5',
+          });
+        }),
+      );
 
       final out = await client.createJson(
         name: 'manifest.json',
@@ -166,15 +187,17 @@ void main() {
   group('updateJson', () {
     test('PATCHes with If-Match header and returns parsed metadata', () async {
       late http.Request seen;
-      final client = DriveClient(MockClient((req) async {
-        seen = req;
-        return _ok({
-          'id': 'fid',
-          'name': 'manifest.json',
-          'headRevisionId': 'rev2',
-          'size': '11',
-        });
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          seen = req;
+          return _ok({
+            'id': 'fid',
+            'name': 'manifest.json',
+            'headRevisionId': 'rev2',
+            'size': '11',
+          });
+        }),
+      );
 
       final out = await client.updateJson(
         fileId: 'fid',
@@ -190,30 +213,30 @@ void main() {
     });
 
     test('throws DriveEtagMismatch on 412', () async {
-      final client = DriveClient(MockClient((req) async {
-        return http.Response('precondition failed', 412);
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          return http.Response('precondition failed', 412);
+        }),
+      );
       await expectLater(
-        client.updateJson(
-          fileId: 'fid',
-          content: const {},
-          ifMatch: 'stale',
-        ),
+        client.updateJson(fileId: 'fid', content: const {}, ifMatch: 'stale'),
         throwsA(isA<DriveEtagMismatch>()),
       );
     });
 
     test('omits If-Match when not provided', () async {
       late http.Request seen;
-      final client = DriveClient(MockClient((req) async {
-        seen = req;
-        return _ok({
-          'id': 'fid',
-          'name': 'manifest.json',
-          'headRevisionId': 'rev2',
-          'size': '11',
-        });
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          seen = req;
+          return _ok({
+            'id': 'fid',
+            'name': 'manifest.json',
+            'headRevisionId': 'rev2',
+            'size': '11',
+          });
+        }),
+      );
       await client.updateJson(fileId: 'fid', content: const {});
       expect(seen.headers.containsKey('If-Match'), isFalse);
     });
@@ -221,35 +244,37 @@ void main() {
 
   group('deleteFile', () {
     test('treats a 404 as success', () async {
-      final client = DriveClient(MockClient((req) async {
-        expect(req.method, 'DELETE');
-        return http.Response('', 404);
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          expect(req.method, 'DELETE');
+          return http.Response('', 404);
+        }),
+      );
       await client.deleteFile('gone');
     });
 
     test('throws on a non-2xx that is not 404', () async {
-      final client = DriveClient(MockClient((req) async {
-        return http.Response('forbidden', 403);
-      }));
+      final client = DriveClient(
+        MockClient((req) async {
+          return http.Response('forbidden', 403);
+        }),
+      );
       await expectLater(
         client.deleteFile('id'),
-        throwsA(isA<DriveApiException>().having(
-          (e) => e.statusCode,
-          'statusCode',
-          403,
-        )),
+        throwsA(
+          isA<DriveApiException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            403,
+          ),
+        ),
       );
     });
   });
 
   group('DriveFile.fromJson', () {
     test('parses size as int and tolerates missing optional fields', () {
-      final f = DriveFile.fromJson({
-        'id': 'x',
-        'name': 'n',
-        'size': '42',
-      });
+      final f = DriveFile.fromJson({'id': 'x', 'name': 'n', 'size': '42'});
       expect(f.size, 42);
       expect(f.headRevisionId, isNull);
     });

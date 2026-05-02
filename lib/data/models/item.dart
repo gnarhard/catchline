@@ -41,6 +41,9 @@ class Item extends HiveObject {
   @HiveField(10)
   List<AiFavorite>? aiFavorites;
 
+  @HiveField(11)
+  String? tag;
+
   Item({
     required this.id,
     required this.kind,
@@ -53,5 +56,6 @@ class Item extends HiveObject {
     this.aiSynopsis,
     this.aiRephrasings,
     this.aiFavorites,
+    this.tag,
   });
 }

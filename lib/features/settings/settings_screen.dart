@@ -5,93 +5,204 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/sync/sync_service.dart';
+import '../../state/items_notifier.dart';
 import '../../state/providers.dart';
 import '../../state/sync_providers.dart';
+import '../../data/models/item_kind.dart';
+import '../../data/models/tag_palette.dart';
+import '../../theme/app_theme.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accountAsync = ref.watch(googleAccountProvider);
-    final statusAsync = ref.watch(syncStatusProvider);
-
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('Settings')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: [
-              const _SectionHeader('Google Drive sync'),
-              accountAsync.when(
-                data: (account) => account == null
-                    ? const _SignedOutTile()
-                    : _SignedInTile(email: account.email),
-                loading: () => const ListTile(
-                  leading: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  title: Text('Checking sign-in…'),
-                ),
-                error: (e, _) => ListTile(
-                  leading: const Icon(LucideIcons.circleAlert),
-                  title: const Text('Sign-in unavailable'),
-                  subtitle: Text('$e'),
-                ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _Title('Settings'),
               ),
-              if (accountAsync.value != null) ...[
-                const Divider(),
-                _SyncStatusTile(status: statusAsync.value ?? SyncStatus.idle),
-              ],
-              const _SectionHeader('AI'),
-              const _AnthropicKeyTile(),
-              const Divider(height: 24),
-              const _PhraseStylesEditor(),
-            ],
-          ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+                children: const [
+                  _SectionLabel('Google Drive sync'),
+                  _SyncCard(),
+                  SizedBox(height: 6),
+                  _SectionLabel('AI'),
+                  _AiKeyCard(),
+                  SizedBox(height: 6),
+                  _SectionLabel('Tags'),
+                  _TagsCard(),
+                  SizedBox(height: 6),
+                  _SectionLabel('Phrase rephrase styles'),
+                  _RephraseStylesCard(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
+class _Title extends StatelessWidget {
+  const _Title(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: serifStyle(
+        fontSize: 26,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
   final String text;
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
       child: Text(
         text.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-          letterSpacing: 1.2,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.4,
+          color: AppColors.sectionLabel,
         ),
       ),
     );
   }
 }
 
-class _SignedOutTile extends ConsumerWidget {
-  const _SignedOutTile();
+/// Shared dark card used by every settings section. Translucent surface +
+/// subtle warm-rose hairline matches the design tokens.
+class _Card extends StatelessWidget {
+  const _Card({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0x8C14080C),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x14FFDCDC)),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SyncCard extends ConsumerWidget {
+  const _SyncCard();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListTile(
-      leading: const Icon(LucideIcons.cloudOff),
-      title: const Text('Not connected'),
-      subtitle: const Text(
-        'Connect Drive to back up entries on app open and close.',
+    final accountAsync = ref.watch(googleAccountProvider);
+    return _Card(
+      child: accountAsync.when(
+        data: (account) => account == null
+            ? const _SignedOutBlock()
+            : _SignedInBlock(email: account.email),
+        loading: () => const SizedBox(
+          height: 40,
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+        error: (e, _) => Row(
+          children: [
+            const Icon(
+              LucideIcons.circleAlert,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Sign-in unavailable: $e',
+                style: const TextStyle(fontSize: 12, color: AppColors.textDim),
+              ),
+            ),
+          ],
+        ),
       ),
-      trailing: FilledButton(
-        onPressed: () => _connect(context, ref),
-        child: const Text('Connect'),
-      ),
+    );
+  }
+}
+
+class _SignedOutBlock extends ConsumerWidget {
+  const _SignedOutBlock();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.textMuted.withAlpha(36),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            LucideIcons.cloudOff,
+            size: 16,
+            color: AppColors.textMuted,
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Not connected',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Connect Drive to back up entries.',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ),
+        FilledButton(
+          onPressed: () => _connect(context, ref),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            textStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          child: const Text('Connect'),
+        ),
+      ],
     );
   }
 
@@ -99,7 +210,6 @@ class _SignedOutTile extends ConsumerWidget {
     try {
       await ref.read(googleAuthProvider).connectDrive();
       if (!context.mounted) return;
-      // Kick a sync immediately so the user sees something happen.
       unawaited(ref.read(syncServiceProvider).syncNow());
     } catch (e) {
       if (!context.mounted) return;
@@ -110,36 +220,97 @@ class _SignedOutTile extends ConsumerWidget {
   }
 }
 
-class _SignedInTile extends ConsumerWidget {
-  const _SignedInTile({required this.email});
+class _SignedInBlock extends ConsumerWidget {
+  const _SignedInBlock({required this.email});
   final String email;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(syncStatusProvider);
     return Column(
       children: [
-        ListTile(
-          leading: const Icon(LucideIcons.cloudCheck),
-          title: const Text('Connected'),
-          subtitle: Text(email),
-          trailing: TextButton(
-            onPressed: () => _disconnect(context, ref),
-            child: const Text('Disconnect'),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(LucideIcons.refreshCw, size: 18),
-                  label: const Text('Sync now'),
-                  onPressed: () => ref.read(syncServiceProvider).syncNow(),
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0x24A0C4A8),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                LucideIcons.check,
+                size: 16,
+                color: Color(0xFFA0C4A8),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Connected',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    email,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => _disconnect(context, ref),
+              child: const Text(
+                'Disconnect',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.accent,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(height: 1, color: const Color(0x14FFDCDC)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _SyncStatusRow(
+                status: statusAsync.value ?? SyncStatus.idle,
+              ),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              onPressed: () => ref.read(syncServiceProvider).syncNow(),
+              icon: const Icon(LucideIcons.refreshCw, size: 12),
+              label: const Text('Sync now'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                side: BorderSide(color: AppColors.accent.withAlpha(76)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                shape: const StadiumBorder(),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -157,44 +328,74 @@ class _SignedInTile extends ConsumerWidget {
   }
 }
 
-class _SyncStatusTile extends StatelessWidget {
-  const _SyncStatusTile({required this.status});
+class _SyncStatusRow extends StatelessWidget {
+  const _SyncStatusRow({required this.status});
   final SyncStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final (icon, title, subtitle) = switch (status.kind) {
+    final (icon, title, subtitle, color) = switch (status.kind) {
       SyncStatusKind.idle => (
-        const Icon(LucideIcons.check),
+        LucideIcons.check,
         'Up to date',
         status.lastSyncedAtMs == null
             ? null
             : 'Last sync ${_relative(status.lastSyncedAtMs!)}',
+        AppColors.textDim,
       ),
       SyncStatusKind.syncing => (
-        const SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        LucideIcons.loader,
         'Syncing…',
         null,
+        AppColors.textDim,
       ),
       SyncStatusKind.error => (
-        const Icon(LucideIcons.circleAlert),
+        LucideIcons.circleAlert,
         'Sync failed',
         status.message,
+        AppColors.textMuted,
       ),
       SyncStatusKind.signedOut => (
-        const Icon(LucideIcons.cloudOff),
+        LucideIcons.cloudOff,
         'Not connected',
         null,
+        AppColors.textMuted,
       ),
     };
-    return ListTile(
-      leading: icon,
-      title: Text(title),
-      subtitle: subtitle == null ? null : Text(subtitle),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textDim,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -209,14 +410,13 @@ class _SyncStatusTile extends StatelessWidget {
   }
 }
 
-class _AnthropicKeyTile extends ConsumerStatefulWidget {
-  const _AnthropicKeyTile();
-
+class _AiKeyCard extends ConsumerStatefulWidget {
+  const _AiKeyCard();
   @override
-  ConsumerState<_AnthropicKeyTile> createState() => _AnthropicKeyTileState();
+  ConsumerState<_AiKeyCard> createState() => _AiKeyCardState();
 }
 
-class _AnthropicKeyTileState extends ConsumerState<_AnthropicKeyTile> {
+class _AiKeyCardState extends ConsumerState<_AiKeyCard> {
   late final TextEditingController _controller;
   bool _obscure = true;
   bool _loaded = false;
@@ -275,55 +475,84 @@ class _AnthropicKeyTileState extends ConsumerState<_AnthropicKeyTile> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(LucideIcons.key, size: 18),
-              const SizedBox(width: 12),
-              Text('Anthropic API key', style: theme.textTheme.titleMedium),
+              Icon(LucideIcons.key, size: 14, color: AppColors.textPrimary),
+              SizedBox(width: 8),
+              Text(
+                'Anthropic API key',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
+          const SizedBox(height: 6),
+          const Text(
             'Stored in your device keychain. Used for journal synopses and phrase rephrasing.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+              height: 1.45,
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _controller,
-            obscureText: _obscure,
-            enabled: _loaded && !_saving,
-            decoration: InputDecoration(
-              hintText: _loaded ? 'sk-ant-…' : 'Loading…',
-              border: const OutlineInputBorder(),
-              isDense: true,
-              suffixIcon: IconButton(
-                tooltip: _obscure ? 'Show' : 'Hide',
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  obscureText: _obscure,
+                  enabled: _loaded && !_saving,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    letterSpacing: 1,
+                    color: AppColors.textDim,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: _loaded ? 'sk-ant-…' : 'Loading…',
+                    hintStyle: const TextStyle(color: AppColors.textMuted),
+                    border: const UnderlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              IconButton(
                 onPressed: () => setState(() => _obscure = !_obscure),
                 icon: Icon(
                   _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
-                  size: 18,
+                  size: 14,
+                  color: AppColors.textMuted,
                 ),
               ),
-            ),
-            onChanged: (_) => setState(() {}),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerRight,
             child: FilledButton(
               onPressed: (_isDirty && !_saving) ? _save : null,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               child: _saving
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 14,
+                      height: 14,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Save'),
@@ -335,15 +564,111 @@ class _AnthropicKeyTileState extends ConsumerState<_AnthropicKeyTile> {
   }
 }
 
-class _PhraseStylesEditor extends ConsumerStatefulWidget {
-  const _PhraseStylesEditor();
-
+class _TagsCard extends ConsumerWidget {
+  const _TagsCard();
   @override
-  ConsumerState<_PhraseStylesEditor> createState() =>
-      _PhraseStylesEditorState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all = ref.watch(itemsProvider);
+    final byKind = <ItemKind, int>{for (final kind in ItemKind.values) kind: 0};
+    for (final item in all) {
+      if (item.tag != null) byKind[item.kind] = (byKind[item.kind] ?? 0) + 1;
+    }
+    final rows = ItemKind.values
+        .map(
+          (k) => _TagsRow(
+            label: '${_kindAdjective(k)} tags',
+            tagged: byKind[k] ?? 0,
+            availableTags: defaultTagsFor(k).length,
+          ),
+        )
+        .toList();
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Each entry type has its own tag set.',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) Container(height: 1, color: const Color(0x10FFDCDC)),
+            rows[i],
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _kindAdjective(ItemKind k) => switch (k) {
+    ItemKind.phrase => 'Phrase',
+    ItemKind.poem => 'Poem',
+    ItemKind.lyric => 'Lyric',
+    ItemKind.journal => 'Journal',
+  };
 }
 
-class _PhraseStylesEditorState extends ConsumerState<_PhraseStylesEditor> {
+class _TagsRow extends StatelessWidget {
+  const _TagsRow({
+    required this.label,
+    required this.tagged,
+    required this.availableTags,
+  });
+  final String label;
+  final int tagged;
+  final int availableTags;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$availableTags available · $tagged in use',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            LucideIcons.chevronRight,
+            size: 14,
+            color: AppColors.textMuted,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RephraseStylesCard extends ConsumerStatefulWidget {
+  const _RephraseStylesCard();
+  @override
+  ConsumerState<_RephraseStylesCard> createState() =>
+      _RephraseStylesCardState();
+}
+
+class _RephraseStylesCardState extends ConsumerState<_RephraseStylesCard> {
   late List<String> _styles;
   bool _initialized = false;
   final _addController = TextEditingController();
@@ -386,50 +711,33 @@ class _PhraseStylesEditorState extends ConsumerState<_PhraseStylesEditor> {
       _styles = List<String>.from(repo.phraseStyles);
       _initialized = true;
     }
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+    return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(LucideIcons.sparkles, size: 18),
-              const SizedBox(width: 12),
-              Text(
-                'Phrase rephrase styles',
-                style: theme.textTheme.titleMedium,
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Names of artists, writers, or personalities. Tapping rephrase on a phrase will generate one rewrite per style.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          const Text(
+            'Tapping rephrase on a phrase generates one rewrite per style.',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+              height: 1.45,
             ),
           ),
           const SizedBox(height: 12),
           if (_styles.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No styles yet. Add one below.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+            const Text(
+              'No styles yet. Add one below.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             )
           else
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 for (var i = 0; i < _styles.length; i++)
-                  InputChip(
-                    label: Text(_styles[i]),
-                    onDeleted: () => _removeStyle(i),
-                    deleteIconColor: theme.colorScheme.onSurfaceVariant,
+                  _StyleChip(
+                    label: _styles[i],
+                    onRemove: () => _removeStyle(i),
                   ),
               ],
             ),
@@ -441,21 +749,73 @@ class _PhraseStylesEditorState extends ConsumerState<_PhraseStylesEditor> {
                   controller: _addController,
                   decoration: const InputDecoration(
                     hintText: 'Add a style…',
-                    border: OutlineInputBorder(),
+                    hintStyle: TextStyle(color: AppColors.textMuted),
+                    border: UnderlineInputBorder(),
                     isDense: true,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
                   textInputAction: TextInputAction.done,
                   textCapitalization: TextCapitalization.words,
                   onSubmitted: (_) => _addStyle(),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               FilledButton.icon(
                 onPressed: _addStyle,
-                icon: const Icon(LucideIcons.plus, size: 16),
+                icon: const Icon(LucideIcons.plus, size: 14),
                 label: const Text('Add'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StyleChip extends StatelessWidget {
+  const _StyleChip({required this.label, required this.onRemove});
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xB314080C),
+        border: Border.all(color: const Color(0x14FFDCDC)),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: AppColors.textDim),
+          ),
+          const SizedBox(width: 6),
+          InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onRemove,
+            child: const Icon(
+              LucideIcons.x,
+              size: 11,
+              color: AppColors.textMuted,
+            ),
           ),
         ],
       ),

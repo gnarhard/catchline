@@ -28,13 +28,14 @@ class ItemAdapter extends TypeAdapter<Item> {
       aiSynopsis: fields[8] as String?,
       aiRephrasings: (fields[9] as Map?)?.cast<String, String>(),
       aiFavorites: (fields[10] as List?)?.cast<AiFavorite>(),
+      tag: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(9)
       ..write(obj.aiRephrasings)
       ..writeByte(10)
-      ..write(obj.aiFavorites);
+      ..write(obj.aiFavorites)
+      ..writeByte(11)
+      ..write(obj.tag);
   }
 
   @override
