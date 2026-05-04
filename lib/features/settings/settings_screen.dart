@@ -6,11 +6,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/sync/sync_service.dart';
 import '../../state/items_notifier.dart';
+import '../../state/journal_lock.dart';
 import '../../state/providers.dart';
 import '../../state/sync_providers.dart';
 import '../../data/models/item_kind.dart';
 import '../../theme/app_theme.dart';
 import '../../util/instant_page_route.dart';
+import '../journal_lock/journal_pin_dialogs.dart';
 import 'tag_editor_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -39,6 +41,9 @@ class SettingsScreen extends ConsumerWidget {
                   SizedBox(height: 6),
                   _SectionLabel('AI'),
                   _AiKeyCard(),
+                  SizedBox(height: 6),
+                  _SectionLabel('Privacy'),
+                  _JournalPinCard(),
                   SizedBox(height: 6),
                   _SectionLabel('Tags'),
                   _TagsCard(),
@@ -667,9 +672,7 @@ class _TagsRow extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () => Navigator.of(context).push(
-          InstantPageRoute<void>(
-            builder: (_) => TagEditorScreen(kind: kind),
-          ),
+          InstantPageRoute<void>(builder: (_) => TagEditorScreen(kind: kind)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
@@ -869,5 +872,95 @@ class _StyleChip extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _JournalPinCard extends ConsumerWidget {
+  const _JournalPinCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(journalLockProvider);
+    final hasPin = state.value?.hasPin ?? false;
+    final loading = state.isLoading && state.value == null;
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(LucideIcons.lock, size: 14, color: AppColors.textPrimary),
+              SizedBox(width: 8),
+              Text(
+                'Journal PIN',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'When set, journal entries are blurred until you enter the PIN. '
+            'The journal re-locks when you background or close the app.',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  loading ? 'Loading…' : (hasPin ? 'PIN is set' : 'No PIN set'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: hasPin ? AppColors.textPrimary : AppColors.textDim,
+                  ),
+                ),
+              ),
+              if (!loading)
+                FilledButton(
+                  onPressed: () => _onPress(context, ref, hasPin: hasPin),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  child: Text(hasPin ? 'Change' : 'Set PIN'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onPress(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool hasPin,
+  }) async {
+    final ok = await showJournalPinSetupDialog(context, hasExistingPin: hasPin);
+    if (!ok || !context.mounted) return;
+    final updated = ref.read(journalLockProvider).value;
+    final nowHasPin = updated?.hasPin ?? false;
+    final message = hasPin
+        ? (nowHasPin ? 'Journal PIN updated.' : 'Journal PIN removed.')
+        : 'Journal PIN set. Journal will re-lock when you close the app.';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

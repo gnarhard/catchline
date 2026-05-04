@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -5,12 +7,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../data/models/item.dart';
 import '../../data/models/item_kind.dart';
 import '../../state/items_notifier.dart';
+import '../../state/journal_lock.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../util/id.dart';
 import '../../util/instant_page_route.dart';
 import '../../util/journal_date.dart';
 import '../../util/text_preview.dart';
+import '../journal_lock/journal_pin_dialogs.dart';
 import 'item_edit_screen.dart';
 import 'list_filter.dart';
 import 'widgets/calendar_jump_sheet.dart';
@@ -55,6 +59,39 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
     }
 
     final supportsTagFilter = widget.kind != ItemKind.journal;
+    final isJournal = widget.kind == ItemKind.journal;
+    final journalLocked = isJournal && ref.watch(journalLockedProvider);
+
+    final listArea = Expanded(
+      child: items.isEmpty
+          ? (_query.trim().isNotEmpty
+                ? _NoMatches(query: _query)
+                : (hasFilter
+                      ? const _NoFilterMatches()
+                      : EmptyState(kind: widget.kind)))
+          : ListView.separated(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => Divider(
+                height: 1,
+                thickness: 1,
+                indent: 20,
+                endIndent: 20,
+                color: AppColors.textPrimary.withAlpha(12),
+              ),
+              itemBuilder: (context, i) {
+                final item = items[i];
+                return KeyedSubtree(
+                  key: _itemKeys[i],
+                  child: ItemTile(
+                    item: item,
+                    onTap: () => _open(context, item),
+                  ),
+                );
+              },
+            ),
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -66,19 +103,27 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
               subtitle: hasFilter
                   ? 'Filtered · ${_tagFilter.length} ${_tagFilter.length == 1 ? 'tag' : 'tags'}'
                   : null,
-              onSearch: () => setState(() {
-                _searchOpen = !_searchOpen;
-                if (!_searchOpen) {
-                  _searchController.clear();
-                  _query = '';
-                }
-              }),
+              onSearch: () async {
+                if (!await _ensureJournalUnlocked(context)) return;
+                if (!mounted) return;
+                setState(() {
+                  _searchOpen = !_searchOpen;
+                  if (!_searchOpen) {
+                    _searchController.clear();
+                    _query = '';
+                  }
+                });
+              },
               onFilter: supportsTagFilter
                   ? () => _openFilterSheet(context)
                   : null,
               filterActive: hasFilter,
               searchActive: _searchOpen,
-              onCalendar: () => _openCalendarSheet(context, allItemsForCounts),
+              onCalendar: () async {
+                if (!await _ensureJournalUnlocked(context)) return;
+                if (!context.mounted) return;
+                _openCalendarSheet(context, allItemsForCounts);
+              },
             ),
             if (_searchOpen)
               _SearchField(
@@ -94,45 +139,44 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
                 tagIds: _tagFilter.toList(),
                 onClear: () => setState(_tagFilter.clear),
               ),
-            Expanded(
-              child: items.isEmpty
-                  ? (_query.trim().isNotEmpty
-                        ? _NoMatches(query: _query)
-                        : (hasFilter
-                              ? const _NoFilterMatches()
-                              : EmptyState(kind: widget.kind)))
-                  : ListView.separated(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 1,
-                        thickness: 1,
-                        indent: 20,
-                        endIndent: 20,
-                        color: AppColors.textPrimary.withAlpha(12),
-                      ),
-                      itemBuilder: (context, i) {
-                        final item = items[i];
-                        return KeyedSubtree(
-                          key: _itemKeys[i],
-                          child: ItemTile(
-                            item: item,
-                            onTap: () => _open(context, item),
-                          ),
-                        );
-                      },
-                    ),
-            ),
+            if (journalLocked)
+              Expanded(
+                child: _JournalLockOverlay(
+                  onUnlock: () => _attemptUnlock(context),
+                  child: IgnorePointer(
+                    ignoring: true,
+                    child: Column(children: [listArea]),
+                  ),
+                ),
+              )
+            else
+              listArea,
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'fab_${widget.kind.name}',
         onPressed: () => _create(context, ref),
-        child: const Icon(LucideIcons.plus, size: 18),
+        child: Icon(
+          journalLocked ? LucideIcons.lock : LucideIcons.plus,
+          size: 18,
+        ),
       ),
     );
+  }
+
+  Future<bool> _attemptUnlock(BuildContext context) async {
+    final unlocked = await promptForJournalPin(context);
+    return unlocked;
+  }
+
+  /// True if [widget.kind] is journal and a PIN is set but the session is
+  /// locked. Returns true once the user has unlocked (or no PIN is set);
+  /// returns false if the user cancelled the prompt.
+  Future<bool> _ensureJournalUnlocked(BuildContext context) async {
+    if (widget.kind != ItemKind.journal) return true;
+    if (!ref.read(journalLockedProvider)) return true;
+    return _attemptUnlock(context);
   }
 
   Future<void> _openFilterSheet(BuildContext context) async {
@@ -234,7 +278,9 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
   List<Item> _filter(List<Item> items, String query, Set<String> tagFilter) =>
       filterItems(items, query: query, tagFilter: tagFilter);
 
-  void _open(BuildContext context, Item item) {
+  Future<void> _open(BuildContext context, Item item) async {
+    if (!await _ensureJournalUnlocked(context)) return;
+    if (!context.mounted) return;
     if (item.id == '__placeholder__') {
       _createForDate(
         context,
@@ -250,6 +296,8 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
   }
 
   Future<void> _create(BuildContext context, WidgetRef ref) async {
+    if (!await _ensureJournalUnlocked(context)) return;
+    if (!context.mounted) return;
     if (widget.kind == ItemKind.journal) {
       final today = todayKey();
       final existing = ref
@@ -510,6 +558,81 @@ class _NoFilterMatches extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Wraps the journal list in a blur + tap-to-unlock overlay.
+class _JournalLockOverlay extends StatelessWidget {
+  const _JournalLockOverlay({required this.child, required this.onUnlock});
+
+  final Widget child;
+  final Future<bool> Function() onUnlock;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        Positioned.fill(
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                color: AppColors.darkScaffold.withAlpha(120),
+                alignment: Alignment.center,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onUnlock,
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.accent.withAlpha(40),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              LucideIcons.lock,
+                              size: 28,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Text(
+                            'Journal locked',
+                            style: serifStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Tap to unlock with your PIN.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textDim,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

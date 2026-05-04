@@ -405,9 +405,10 @@ class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (day == null) {
-      return const SizedBox(height: 48);
+      return const SizedBox(height: 52);
     }
     final markerColor = selected ? AppColors.accentText : AppColors.accent;
+    final hasMarkers = counts != null && !counts!.isEmpty;
     return Material(
       color: selected ? AppColors.accent : Colors.transparent,
       borderRadius: BorderRadius.circular(14),
@@ -415,32 +416,30 @@ class _DayCell extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: SizedBox(
-          height: 48,
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Center(
-                  child: Text(
-                    '$day',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      color: selected
-                          ? AppColors.accentText
-                          : AppColors.textPrimary,
-                    ),
+          height: 52,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$day',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected
+                        ? AppColors.accentText
+                        : AppColors.textPrimary,
+                    height: 1.1,
                   ),
                 ),
-              ),
-              if (counts != null && !counts!.isEmpty)
-                Positioned(
-                  left: 4,
-                  right: 4,
-                  bottom: 4,
-                  child: _Markers(counts: counts!, color: markerColor),
-                ),
-            ],
+                if (hasMarkers) ...[
+                  const SizedBox(height: 3),
+                  _Markers(counts: counts!, color: markerColor),
+                ],
+              ],
+            ),
           ),
         ),
       ),

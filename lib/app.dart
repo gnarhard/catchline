@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/home/home_shell.dart';
+import 'state/journal_lock.dart';
 import 'state/providers.dart';
 import 'state/sync_providers.dart';
 import 'theme/app_theme.dart';
@@ -26,7 +27,12 @@ class _CatchlineAppState extends ConsumerState<CatchlineApp> {
   void initState() {
     super.initState();
 
-    _lifecycle = AppLifecycleListener(onResume: _onResume, onPause: _onPause);
+    _lifecycle = AppLifecycleListener(
+      onResume: _onResume,
+      onPause: _onPause,
+      onHide: _onLeaveForeground,
+      onDetach: _onLeaveForeground,
+    );
 
     // Init Google sign-in and try silent restore. After a successful restore
     // the account stream emits and any signed-in path runs an initial sync.
@@ -65,9 +71,18 @@ class _CatchlineAppState extends ConsumerState<CatchlineApp> {
   }
 
   void _onPause() {
+    _lockJournal();
     if (kIsWeb) return; // web uses the debounced post-write sync instead.
     if (ref.read(googleAuthProvider).currentAccount == null) return;
     ref.read(syncServiceProvider).syncNow();
+  }
+
+  void _onLeaveForeground() {
+    _lockJournal();
+  }
+
+  void _lockJournal() {
+    ref.read(journalLockProvider.notifier).lock();
   }
 
   @override
