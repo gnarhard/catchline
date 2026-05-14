@@ -298,22 +298,6 @@ class _ItemListScreenState extends ConsumerState<ItemListScreen> {
   Future<void> _create(BuildContext context, WidgetRef ref) async {
     if (!await _ensureJournalUnlocked(context)) return;
     if (!context.mounted) return;
-    if (widget.kind == ItemKind.journal) {
-      final today = todayKey();
-      final existing = ref
-          .read(itemsByKindProvider(ItemKind.journal))
-          .where((i) => dayKey(i.createdAtMs) == today)
-          .firstOrNull;
-      if (existing != null) {
-        Navigator.of(context).push(
-          InstantPageRoute<void>(
-            builder: (_) =>
-                ItemEditScreen(itemId: existing.id, kind: ItemKind.journal),
-          ),
-        );
-        return;
-      }
-    }
 
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     final item = Item(
